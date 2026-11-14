@@ -656,10 +656,10 @@ class _AskScreenState extends State<AskScreen> {
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(color: Colors.grey[200]!),
                               ),
-                              child: const Column(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
+                                  const Row(
                                     children: [
                                       Icon(Icons.lightbulb_outline,
                                           color: Color(0xFFD97706), size: 18),
