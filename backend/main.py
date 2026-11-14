@@ -1,3 +1,4 @@
+import asyncio
 import mimetypes
 import os
 
@@ -6,10 +7,14 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import fallback
+
 # ---------- Fungsi AI dari Mutiara (kalau belum ada, pakai data pura-pura) ----------
 try:
     from ai import analisis_dokumen
-except ImportError:
+except ImportError as e:
+    print("PERINGATAN: analisis_dokumen belum tersedia, pakai data pura-pura. Sebab:", e)
+
     def analisis_dokumen(gambar, mime_type="image/jpeg", bahasa="id"):
         return {
             "penjelasan": "Ini surat tagihan iuran BPJS Kesehatan. Kamu diminta membayar iuran bulan ini.",
@@ -20,13 +25,17 @@ except ImportError:
 
 try:
     from ai import tanya_jawab
-except ImportError:
+except ImportError as e:
+    print("PERINGATAN: tanya_jawab belum tersedia, pakai data pura-pura. Sebab:", e)
+
     def tanya_jawab(pertanyaan, konteks="", bahasa="id"):
         return "Kamu harus membayar sebelum tanggal 20 November 2026."
 
 try:
     from ai import transkrip_suara
-except ImportError:
+except ImportError as e:
+    print("PERINGATAN: transkrip_suara belum tersedia, pakai data pura-pura. Sebab:", e)
+
     def transkrip_suara(audio, suffix=".m4a"):
         return "Kapan saya harus membayar?"
 
@@ -79,10 +88,26 @@ async def analyze(foto: UploadFile = File(...), bahasa: str = Form("id")):
     if mime not in TIPE_OK:
         raise HTTPException(400, "Format foto harus JPG, PNG, atau WEBP")
 
+    # Coba Gemini sampai 3 kali (menangani batas API / error sesaat)
+    for percobaan in range(3):
+        try:
+            hasil = await run_in_threadpool(
+                analisis_dokumen, isi, mime_type=mime, bahasa=bahasa
+            )
+        except Exception as e:
+            print("ERROR analyze:", e)
+            hasil = {"gagal": True}
+        if not hasil.get("gagal"):
+            return hasil
+        print(f"Gemini gagal, percobaan {percobaan + 1}/3")
+        await asyncio.sleep(2 * (percobaan + 1))
+
+    # Semua percobaan gagal: pakai OCR cadangan
+    print("Memakai OCR cadangan")
     try:
-        return await run_in_threadpool(analisis_dokumen, isi, mime_type=mime, bahasa=bahasa)
+        return await run_in_threadpool(fallback.ocr_cadangan, isi)
     except Exception as e:
-        print("ERROR analyze:", e)
+        print("ERROR OCR cadangan:", e)
         raise HTTPException(503, "BACO sedang sibuk, coba lagi sebentar")
 
 
@@ -109,7 +134,9 @@ async def stt(audio: UploadFile = File(...)):
 async def ask(req: AskRequest):
     print(f"Pertanyaan: {req.pertanyaan} (bahasa={req.bahasa})")
     try:
-        jawaban = await run_in_threadpool(tanya_jawab, req.pertanyaan, req.konteks, req.bahasa)
+        jawaban = await run_in_threadpool(
+            tanya_jawab, req.pertanyaan, req.konteks, req.bahasa
+        )
     except Exception as e:
         print("ERROR ask:", e)
         raise HTTPException(503, "BACO sedang sibuk, coba lagi sebentar")
