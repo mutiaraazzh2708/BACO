@@ -25,6 +25,7 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen> {
   final TtsService _ttsService = TtsService();
   late String _currentBahasa;
+  int _zoomPercent = 100;
   double _fontScale = 1.0;
   bool _isPlaying = false;
   bool _isHighContrast = false;
@@ -32,6 +33,26 @@ class _ResultScreenState extends State<ResultScreen> {
   Timer? _playbackTimer;
   int _elapsedSeconds = 0;
   int _totalSeconds = 20;
+
+  void _zoomIn() {
+    if (_zoomPercent < 140) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        _zoomPercent += 10;
+        _fontScale = _zoomPercent / 100.0;
+      });
+    }
+  }
+
+  void _zoomOut() {
+    if (_zoomPercent > 70) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        _zoomPercent -= 10;
+        _fontScale = _zoomPercent / 100.0;
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -311,37 +332,91 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                   ),
 
+                  // Pengatur Zoom Teks (Persis Desain: 🔍 Zoom  −  100%  +)
                   Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
+                      color: _isHighContrast ? const Color(0xFF1E1E1E) : Colors.white,
                       border: Border.all(
                         color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300]!,
                       ),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildSizeButton("A-", _fontScale == 0.9, () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _fontScale = 0.9);
-                        }),
-                        Container(
-                          width: 1,
-                          height: 24,
-                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300],
+                        Icon(
+                          Icons.search,
+                          size: 15,
+                          color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF64748B),
                         ),
-                        _buildSizeButton("A", _fontScale == 1.0, () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _fontScale = 1.0);
-                        }),
-                        Container(
-                          width: 1,
-                          height: 24,
-                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300],
+                        const SizedBox(width: 4),
+                        Text(
+                          "Zoom",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _isHighContrast ? Colors.white : const Color(0xFF1E293B),
+                          ),
                         ),
-                        _buildSizeButton("A+", _fontScale == 1.15, () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _fontScale = 1.15);
-                        }),
+                        const SizedBox(width: 8),
+                        // Tombol −
+                        InkWell(
+                          onTap: _zoomPercent > 70 ? _zoomOut : null,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: _zoomPercent > 70
+                                  ? (_isHighContrast ? const Color(0xFF333333) : const Color(0xFFF1F5F9))
+                                  : Colors.transparent,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.remove,
+                              size: 14,
+                              color: _zoomPercent > 70
+                                  ? (_isHighContrast ? Colors.white : Colors.black87)
+                                  : Colors.grey[400],
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Text(
+                            "$_zoomPercent%",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0),
+                            ),
+                          ),
+                        ),
+                        // Tombol +
+                        InkWell(
+                          onTap: _zoomPercent < 140 ? _zoomIn : null,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: _zoomPercent < 140
+                                  ? (_isHighContrast ? const Color(0xFF333333) : const Color(0xFFF1F5F9))
+                                  : Colors.transparent,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.add,
+                              size: 14,
+                              color: _zoomPercent < 140
+                                  ? (_isHighContrast ? Colors.white : Colors.black87)
+                                  : Colors.grey[400],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
