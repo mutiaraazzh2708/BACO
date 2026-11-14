@@ -305,16 +305,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     onLongPress: _showSettingsDialog,
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: primaryCol,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.hearing,
-                            color: _isHighContrast ? Colors.black : Colors.white,
-                            size: 24,
+                        Image.asset(
+                          'assets/images/logo.png',
+                          height: 38,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: primaryCol,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.hearing,
+                              color: _isHighContrast ? Colors.black : Colors.white,
+                              size: 24,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
