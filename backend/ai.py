@@ -7,6 +7,11 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+try:
+    from rag import cari_info
+except ImportError:
+    from backend.rag import cari_info
+
 # Baca .env di folder utama proyek (root repo)
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -31,18 +36,15 @@ Tulis semua isi JSON dalam bahasa Indonesia sederhana.
 Jangan mengarang. Jika informasi tidak ada di dokumen, tulis 'Tidak ada'.
 Jika ada beberapa angka yang harus dijumlahkan, jumlahkan dengan teliti dan tulis totalnya.
 Bedakan tanggal batas bayar dengan tanggal sanksi atau pemutusan, dan sebutkan keduanya jika ada.
-Jika gambar bukan dokumen atau tidak terbaca, jelaskan di 'penjelasan' dan minta pengguna memotret ulang."""
+Jika sebagian teks buram, gelap, terpotong, atau tidak terbaca, JANGAN menebak. Tulis di awal 'penjelasan': "Sebagian dokumen kurang jelas terbaca, mohon foto ulang agar hasilnya lengkap." lalu sebutkan hanya yang benar-benar terbaca.
+Jika batas waktu tidak terbaca, isi 'tindakan' dengan saran memotret ulang, bukan kalimat umum seperti "sebelum batas waktu".
+Jika gambar bukan dokumen atau tidak terbaca sama sekali, jelaskan di 'penjelasan' dan minta pengguna memotret ulang."""
 
 GAYA_MINANG = """Panduan bahasa Minang: gunakan kalimat pendek dan kata sehari-hari seperti
 'indak' (tidak), 'bayia' (bayar), 'ambo' (saya), 'iko' (ini), 'sabalun' (sebelum),
 'lah' (sudah), 'bana' (sungguh/sangat). Hindari kata Indonesia baku jika ada padanan
 Minang yang umum. Angka, tanggal, nama tempat, dan nama instansi tetap ditulis apa adanya.
-Jangan memakai kata 'kaba' untuk 'surat'. Tulis 'surek' untuk surat.
-
-Contoh gaya (sesuaikan dengan koreksi penutur):
-- Indonesia: "Pengambilan ini gratis."  ->  Minang: "Mangambiak iko indak bayia."
-- Indonesia: "Bawa Kartu Keluarga asli."  ->  Minang: "Baok Kartu Keluarga nan asli."
-- Indonesia: "Datang sebelum tanggal 25."  ->  Minang: "Datang sabalun tanggal 25.\""""
+Tulis 'surek' untuk surat, jangan memakai kata 'kaba' untuk surat."""
 
 PESAN_GAGAL = {
     "penjelasan": "Maaf, BACO belum bisa membaca dokumen ini. Coba foto ulang dengan cahaya yang cukup.",
@@ -118,21 +120,25 @@ def analisis_dokumen(gambar: bytes, mime_type: str = "image/jpeg", bahasa: str =
 
 
 def jawab_pertanyaan(pertanyaan: str, konteks="", bahasa: str = "id") -> str:
-    """Jawab pertanyaan pengguna berdasarkan hasil analisis dokumen.
+    """Jawab pertanyaan pengguna berdasarkan hasil analisis dokumen + info layanan publik.
     konteks: dict hasil analisis_dokumen atau teks. Return: teks jawaban."""
     if isinstance(konteks, dict):
         konteks = json.dumps(konteks, ensure_ascii=False)
+    info = cari_info(pertanyaan)
     prompt = f"""Kamu adalah BACO, asisten yang membantu tunanetra dan lansia.
-Jawab pertanyaan pengguna berdasarkan isi dokumen berikut.
+Jawab pertanyaan pengguna berdasarkan isi dokumen dan info layanan publik berikut.
 
 Isi dokumen: {konteks}
+
+Info layanan publik (pakai hanya jika relevan dengan pertanyaan):
+{info if info else "(tidak ada)"}
 
 Pertanyaan: {pertanyaan}
 
 Aturan:
 - Jawab dalam {BAHASA.get(bahasa, BAHASA["id"])}, singkat, 1-3 kalimat, mudah dipahami lansia.
-- Hanya gunakan informasi dari dokumen. Jika tidak ada, katakan tidak tahu
-  dan sarankan bertanya ke petugas atau instansi terkait.
+- Hanya gunakan informasi dari isi dokumen dan info layanan publik di atas. Jika jawabannya tidak ada, katakan tidak tahu dan sarankan bertanya ke petugas atau instansi terkait.
+- Jika memakai info layanan publik, sebutkan nama instansinya (misalnya "menurut BPJS Kesehatan").
 - Jangan mengarang angka atau tanggal. Angka dan tanggal ditulis apa adanya.
 {GAYA_MINANG if bahasa == "min" else ""}"""
     try:
