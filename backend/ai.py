@@ -187,9 +187,10 @@ Pertanyaan pengguna: {pertanyaan}
 Panduan menjawab:
 - Langsung jawab inti informasinya, tanpa salam pembuka atau basa-basi.
 - Jawab dalam {BAHASA.get(bahasa, BAHASA["id"])}, singkat (2-3 kalimat), bahasa sederhana yang mudah dipahami lansia.
-- Jika ada konteks dokumen fisik dan pertanyaan relevan dengan isi dokumen tersebut, utamakan fakta dokumen.
-- Jika pengguna bertanya tentang layanan umum resmi Indonesia (seperti cara daftar BPJS PBI/gratis, syarat pengantar RT, batas bayar tagihan listrik/PDAM, bansos DTKS, dll), jawablah dengan panduan resmi dan jelas menggunakan info referensi di atas serta pengetahuan layanan publik Indonesia.
+- Jika ada konteks dokumen fisik dan pertanyaan relevan dengan isi dokumen tersebut, utamakan fakta dokumen dan sebutkan tanggal/angka spesifik yang ada di konteks.
+- WAJIB menjawab pertanyaan layanan publik umum Indonesia (seperti cara daftar BPJS PBI/gratis, syarat pengantar RT, batas bayar tagihan listrik/PDAM, bansos DTKS, dll) secara langsung dan informatif. Gunakan info referensi di atas dan pengetahuan umum layanan publik Indonesia. JANGAN jawab "tidak tahu" untuk pertanyaan-pertanyaan ini.
 - Jangan mengarang data fiktif atau nomor pribadi. Jika memerlukan kedatangan langsung, sebutkan nama kantor instansi yang tepat (misal kantor kelurahan atau BPJS).
+- Jika pertanyaan tentang dokumen tapi konteks tidak lengkap, jawab berdasarkan jenis dokumen yang disebutkan di konteks dan pengetahuan umum.
 {GAYA_MINANG if bahasa == "min" else ""}"""
     try:
         response = _generate(prompt)

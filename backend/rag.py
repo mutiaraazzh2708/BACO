@@ -11,11 +11,28 @@ STOPWORD = {
     "apakah", "apa", "yang", "dan", "di", "ke", "dari", "untuk", "dengan", "ini", "itu",
     "harus", "bagaimana", "berapa", "kalau", "jika", "bisa", "lewat", "saya", "mau",
     "atau", "ada", "tidak", "akan", "sudah", "dapat", "oleh", "pada", "bila", "cara",
+    "suatu", "setiap", "semua", "juga", "agar", "itu", "hal", "perlu",
 }
+
+# Normalisasi awalan Indonesia agar "mendaftar"→"daftar", "membayar"→"bayar", dll.
+_AWALAN = ("menge", "meng", "mem", "men", "me", "pem", "pen", "pe", "ber", "ter", "ke", "se")
+
+
+def _normalisasi(kata: str) -> str:
+    for aw in _AWALAN:
+        if kata.startswith(aw) and len(kata) - len(aw) >= 3:
+            return kata[len(aw):]
+    return kata
 
 
 def _kata(teks: str) -> set:
-    return {k for k in re.findall(r"\w+", teks.lower()) if len(k) >= 3 and k not in STOPWORD}
+    mentah = {k for k in re.findall(r"\w+", teks.lower()) if len(k) >= 3 and k not in STOPWORD}
+    # Tambahkan versi normalisasi (strip awalan) agar "mendaftar" cocok dengan "daftar"
+    hasil = set()
+    for k in mentah:
+        hasil.add(k)
+        hasil.add(_normalisasi(k))
+    return {k for k in hasil if len(k) >= 3 and k not in STOPWORD}
 
 
 def _muat_data() -> list:
