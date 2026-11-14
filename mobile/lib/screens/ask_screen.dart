@@ -9,11 +9,13 @@ import '../services/tts_service.dart';
 class AskScreen extends StatefulWidget {
   final String bahasa;
   final String contextDocument;
+  final String? documentTitle;
 
   const AskScreen({
     super.key,
     required this.bahasa,
     required this.contextDocument,
+    this.documentTitle,
   });
 
   @override
@@ -352,13 +354,23 @@ class _AskScreenState extends State<AskScreen> {
                             color: const Color(0xFFEBF3FF),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Row(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.description, size: 14, color: Color(0xFF1E56A0)),
-                              SizedBox(width: 4),
+                              Icon(
+                                widget.documentTitle != null
+                                    ? Icons.description
+                                    : Icons.forum_outlined,
+                                size: 14,
+                                color: const Color(0xFF1E56A0),
+                              ),
+                              const SizedBox(width: 5),
                               Text(
-                                "Surat BPJS (Rp 150.000)",
-                                style: TextStyle(
+                                widget.documentTitle ??
+                                    (isMinang
+                                        ? "Tanyo Umum Layanan Publik"
+                                        : "Tanya Umum Layanan"),
+                                style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF1E56A0),
@@ -408,9 +420,13 @@ class _AskScreenState extends State<AskScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  isMinang
-                                      ? "Sanak bisa mangecek langsuang mamakai mikrofon di bawah atau mangetik patanyaan manganai surek BPJS ko."
-                                      : "Kamu bisa berbicara langsung menggunakan mikrofon di bawah atau mengetik pertanyaan mengenai surat BPJS ini.",
+                                  widget.documentTitle != null
+                                      ? (isMinang
+                                          ? "Sanak bisa mangecek langsuang mamakai mikrofon di bawah atau mangetik patanyaan manganai dokumen ${widget.documentTitle} ko."
+                                          : "Kamu bisa berbicara langsung menggunakan mikrofon di bawah atau mengetik pertanyaan mengenai dokumen ${widget.documentTitle} ini.")
+                                      : (isMinang
+                                          ? "Sanak alun mamindai dokumen. Sanak bisa batanyo umum saputa layanan publik (BPJS, listrik, PDAM, bansos) atau foto surek sanak di Beranda."
+                                          : "Anda belum memindai dokumen. Anda bisa bertanya umum seputar layanan publik (BPJS, PLN/PDAM, bansos desa) atau foto dokumen Anda di Beranda."),
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.grey[600],
@@ -658,10 +674,12 @@ class _AskScreenState extends State<AskScreen> {
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    "Jika ada kendala biaya, Anda bisa mendaftar program cicilan REHAB melalui aplikasi Mobile JKN atau kantor cabang BPJS terdekat.",
-                                    style: TextStyle(fontSize: 12.5, height: 1.4),
+                                    widget.documentTitle != null
+                                        ? "Jika ada kendala pembayaran atau berkas yang belum jelas, Anda dapat bertanya langsung ke kantor layanan instansi terdekat."
+                                        : "Untuk informasi ringkasan dan analisis yang persis dengan berkas fisik Anda, silakan foto surat Anda melalui menu Pindai di Beranda.",
+                                    style: const TextStyle(fontSize: 12.5, height: 1.4),
                                   ),
                                 ],
                               ),
@@ -696,24 +714,60 @@ class _AskScreenState extends State<AskScreen> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: [
-                        ActionChip(
-                          avatar: const Icon(Icons.lightbulb,
-                              size: 14, color: Color(0xFF1E56A0)),
-                          label: const Text("Bisa bayar di mana saja?"),
-                          backgroundColor: const Color(0xFFEFF6FF),
-                          side: const BorderSide(color: Color(0xFFBFDBFE)),
-                          onPressed: () => _ask("Bisa bayar di mana saja?"),
-                        ),
-                        const SizedBox(width: 8),
-                        ActionChip(
-                          label: const Text("Bagaimana jika lewat tenggat?"),
-                          backgroundColor: const Color(0xFFEFF6FF),
-                          side: const BorderSide(color: Color(0xFFBFDBFE)),
-                          onPressed: () =>
-                              _ask("Bagaimana jika lewat tenggat waktu?"),
-                        ),
-                      ],
+                      children: widget.documentTitle != null
+                          ? [
+                              ActionChip(
+                                avatar: const Icon(Icons.lightbulb,
+                                    size: 14, color: Color(0xFF1E56A0)),
+                                label: const Text("Bisa bayar di mana saja?"),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                onPressed: () => _ask("Bisa bayar di mana saja?"),
+                              ),
+                              const SizedBox(width: 8),
+                              ActionChip(
+                                label: const Text("Bagaimana jika lewat tenggat?"),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                onPressed: () =>
+                                    _ask("Bagaimana jika lewat tenggat waktu?"),
+                              ),
+                              const SizedBox(width: 8),
+                              ActionChip(
+                                label: const Text("Apa syarat yang harus disiapkan?"),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                onPressed: () =>
+                                    _ask("Apa syarat yang harus disiapkan?"),
+                              ),
+                            ]
+                          : [
+                              ActionChip(
+                                avatar: const Icon(Icons.lightbulb,
+                                    size: 14, color: Color(0xFF1E56A0)),
+                                label: const Text("Cara daftar BPJS gratis?"),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                onPressed: () =>
+                                    _ask("Bagaimana cara mendaftar BPJS Kesehatan gratis PBI?"),
+                              ),
+                              const SizedBox(width: 8),
+                              ActionChip(
+                                label: const Text("Syarat surat pengantar RT?"),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                onPressed: () =>
+                                    _ask("Apa syarat membuat surat pengantar RT atau kelurahan?"),
+                              ),
+                              const SizedBox(width: 8),
+                              ActionChip(
+                                label: const Text("Kapan batas bayar listrik?"),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                onPressed: () =>
+                                    _ask("Kapan batas akhir pembayaran tagihan listrik PLN setiap bulannya?"),
+                              ),
+                            ],
                     ),
                   ),
                   const SizedBox(height: 10),

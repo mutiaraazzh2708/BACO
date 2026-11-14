@@ -863,12 +863,29 @@ class _ResultScreenState extends State<ResultScreen> {
                   onPressed: () {
                     HapticFeedback.mediumImpact();
                     _ttsService.stop();
+
+                    String docTitle = "Dokumen Terpindai";
+                    final p = widget.result.penjelasan.toLowerCase();
+                    if (p.contains("bpjs")) {
+                      docTitle = "Surat BPJS";
+                    } else if (p.contains("listrik") || p.contains("pln")) {
+                      docTitle = "Tagihan Listrik";
+                    } else if (p.contains("pdam") || p.contains("air")) {
+                      docTitle = "Tagihan PDAM";
+                    } else if (p.contains("desa") || p.contains("kelurahan") || p.contains("rt")) {
+                      docTitle = "Surat Desa/Kelurahan";
+                    }
+                    if (widget.result.nominal.isNotEmpty && widget.result.nominal != "Tidak ada") {
+                      docTitle = "$docTitle (${widget.result.nominal})";
+                    }
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AskScreen(
                           bahasa: _currentBahasa,
                           contextDocument: widget.result.toSpeechText(bahasa: _currentBahasa),
+                          documentTitle: docTitle,
                         ),
                       ),
                     );

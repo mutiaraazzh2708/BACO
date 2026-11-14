@@ -879,7 +879,9 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(
                 builder: (context) => AskScreen(
                   bahasa: _selectedBahasa,
-                  contextDocument: "Dokumen umum layanan publik BPJS Kesehatan",
+                  contextDocument:
+                      "Layanan publik umum Indonesia (BPJS Kesehatan, Tagihan Listrik PLN, PDAM, Administrasi Desa/Kelurahan)",
+                  documentTitle: null,
                 ),
               ),
             );
