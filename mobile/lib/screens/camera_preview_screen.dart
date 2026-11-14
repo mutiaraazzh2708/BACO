@@ -28,6 +28,11 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   int _quarterTurns = 0; // Rotasi 90 derajat jika foto miring
   bool _isCropped = false;
 
+  // Zoom dalam persen 0–100 (0% = normal/fit, 100% = zoom max)
+  int _zoomPercent = 0;
+  static const double _minScale = 1.0;
+  static const double _maxScale = 5.0;
+
   @override
   void initState() {
     super.initState();
@@ -48,23 +53,20 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
     super.dispose();
   }
 
-  void _zoomIn() {
-    final matrix = _transformationController.value.clone();
-    matrix.scale(1.25);
-    _transformationController.value = matrix;
+  void _applyZoomPercent(int pct) {
+    final clamped = pct.clamp(0, 100);
+    // Konversi 0–100% ke skala _minScale–_maxScale
+    final scale = _minScale + (clamped / 100.0) * (_maxScale - _minScale);
+    _transformationController.value = Matrix4.identity()..scale(scale);
+    setState(() => _zoomPercent = clamped);
   }
 
-  void _zoomOut() {
-    final matrix = _transformationController.value.clone();
-    matrix.scale(0.8);
-    _transformationController.value = matrix;
-  }
+  void _zoomIn() => _applyZoomPercent(_zoomPercent + 10);
+  void _zoomOut() => _applyZoomPercent(_zoomPercent - 10);
 
   void _resetZoom() {
-    _transformationController.value = Matrix4.identity();
-    setState(() {
-      _quarterTurns = 0;
-    });
+    _applyZoomPercent(0);
+    setState(() => _quarterTurns = 0);
   }
 
   void _rotateImage() {
@@ -245,8 +247,14 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                         transformationController: _transformationController,
                         panEnabled: true,
                         boundaryMargin: const EdgeInsets.all(40),
-                        minScale: 0.5,
-                        maxScale: 5.0,
+                        minScale: _minScale,
+                        maxScale: _maxScale,
+                        onInteractionEnd: (details) {
+                          // Sinkronkan _zoomPercent saat user pinch zoom manual
+                          final scale = _transformationController.value.getMaxScaleOnAxis();
+                          final pct = (((scale - _minScale) / (_maxScale - _minScale)) * 100).round().clamp(0, 100);
+                          if (pct != _zoomPercent) setState(() => _zoomPercent = pct);
+                        },
                         child: RotatedBox(
                           quarterTurns: _quarterTurns,
                           child: Center(
@@ -280,17 +288,33 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                                 padding: EdgeInsets.zero,
                               ),
                               const Divider(height: 8, color: Colors.white24),
+                              // Tombol Zoom +
                               IconButton(
-                                icon: const Icon(Icons.zoom_in, color: Colors.white, size: 24),
-                                tooltip: "Perbesar (Zoom In)",
-                                onPressed: _zoomIn,
+                                icon: const Icon(Icons.add, color: Colors.white, size: 22),
+                                tooltip: "Perbesar (+10%)",
+                                onPressed: _zoomPercent < 100 ? _zoomIn : null,
                                 constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
                                 padding: EdgeInsets.zero,
                               ),
+                              // Label persentase zoom
+                              Container(
+                                width: 38,
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text(
+                                  "$_zoomPercent%",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              // Tombol Zoom -
                               IconButton(
-                                icon: const Icon(Icons.zoom_out, color: Colors.white, size: 24),
-                                tooltip: "Perkecil (Zoom Out)",
-                                onPressed: _zoomOut,
+                                icon: const Icon(Icons.remove, color: Colors.white, size: 22),
+                                tooltip: "Perkecil (-10%)",
+                                onPressed: _zoomPercent > 0 ? _zoomOut : null,
                                 constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
                                 padding: EdgeInsets.zero,
                               ),
@@ -326,7 +350,7 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: const Text(
-                              "🔍 Cubit untuk Zoom • Tekan ikon ✂️ di kanan atas untuk Potong (Crop)",
+                              "🔍 Cubit atau tekan +/- untuk Zoom • Tekan ✂️ untuk Potong",
                               style: TextStyle(color: Colors.white70, fontSize: 11),
                             ),
                           ),
