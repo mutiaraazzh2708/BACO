@@ -25,7 +25,7 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen> {
   final TtsService _ttsService = TtsService();
   late String _currentBahasa;
-  int _zoomPercent = 100;
+  int _zoomPercent = 0; // Rentang 0% s/d 100%
   double _fontScale = 1.0;
   bool _isPlaying = false;
   bool _isHighContrast = false;
@@ -35,21 +35,21 @@ class _ResultScreenState extends State<ResultScreen> {
   int _totalSeconds = 20;
 
   void _zoomIn() {
-    if (_zoomPercent < 140) {
+    if (_zoomPercent < 100) {
       HapticFeedback.selectionClick();
       setState(() {
-        _zoomPercent += 10;
-        _fontScale = _zoomPercent / 100.0;
+        _zoomPercent = (_zoomPercent + 10).clamp(0, 100);
+        _fontScale = 1.0 + (_zoomPercent / 100.0) * 0.30;
       });
     }
   }
 
   void _zoomOut() {
-    if (_zoomPercent > 70) {
+    if (_zoomPercent > 0) {
       HapticFeedback.selectionClick();
       setState(() {
-        _zoomPercent -= 10;
-        _fontScale = _zoomPercent / 100.0;
+        _zoomPercent = (_zoomPercent - 10).clamp(0, 100);
+        _fontScale = 1.0 + (_zoomPercent / 100.0) * 0.30;
       });
     }
   }
@@ -362,13 +362,13 @@ class _ResultScreenState extends State<ResultScreen> {
                         const SizedBox(width: 8),
                         // Tombol −
                         InkWell(
-                          onTap: _zoomPercent > 70 ? _zoomOut : null,
+                          onTap: _zoomPercent > 0 ? _zoomOut : null,
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: _zoomPercent > 70
+                              color: _zoomPercent > 0
                                   ? (_isHighContrast ? const Color(0xFF333333) : const Color(0xFFF1F5F9))
                                   : Colors.transparent,
                               shape: BoxShape.circle,
@@ -377,7 +377,7 @@ class _ResultScreenState extends State<ResultScreen> {
                             child: Icon(
                               Icons.remove,
                               size: 14,
-                              color: _zoomPercent > 70
+                              color: _zoomPercent > 0
                                   ? (_isHighContrast ? Colors.white : Colors.black87)
                                   : Colors.grey[400],
                             ),
@@ -396,13 +396,13 @@ class _ResultScreenState extends State<ResultScreen> {
                         ),
                         // Tombol +
                         InkWell(
-                          onTap: _zoomPercent < 140 ? _zoomIn : null,
+                          onTap: _zoomPercent < 100 ? _zoomIn : null,
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: _zoomPercent < 140
+                              color: _zoomPercent < 100
                                   ? (_isHighContrast ? const Color(0xFF333333) : const Color(0xFFF1F5F9))
                                   : Colors.transparent,
                               shape: BoxShape.circle,
@@ -411,7 +411,7 @@ class _ResultScreenState extends State<ResultScreen> {
                             child: Icon(
                               Icons.add,
                               size: 14,
-                              color: _zoomPercent < 140
+                              color: _zoomPercent < 100
                                   ? (_isHighContrast ? Colors.white : Colors.black87)
                                   : Colors.grey[400],
                             ),
