@@ -28,10 +28,10 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   int _quarterTurns = 0; // Rotasi 90 derajat jika foto miring
   bool _isCropped = false;
 
-  // Zoom dalam persen 0–100 (0% = normal/fit, 100% = zoom max)
-  int _zoomPercent = 0;
-  static const double _minScale = 1.0;
-  static const double _maxScale = 5.0;
+  // Zoom persentase (100% = ukuran normal/fit, bisa diperbesar sampai 300% / diperkecil ke 50%)
+  int _zoomPercent = 100;
+  static const double _minScale = 0.5;
+  static const double _maxScale = 4.0;
 
   @override
   void initState() {
@@ -54,9 +54,8 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   }
 
   void _applyZoomPercent(int pct) {
-    final clamped = pct.clamp(0, 100);
-    // Konversi 0–100% ke skala _minScale–_maxScale
-    final scale = _minScale + (clamped / 100.0) * (_maxScale - _minScale);
+    final clamped = pct.clamp(50, 300);
+    final scale = clamped / 100.0;
     _transformationController.value = Matrix4.identity()..scale(scale);
     setState(() => _zoomPercent = clamped);
   }
@@ -65,7 +64,7 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   void _zoomOut() => _applyZoomPercent(_zoomPercent - 10);
 
   void _resetZoom() {
-    _applyZoomPercent(0);
+    _applyZoomPercent(100);
     setState(() => _quarterTurns = 0);
   }
 
@@ -252,7 +251,7 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                         onInteractionEnd: (details) {
                           // Sinkronkan _zoomPercent saat user pinch zoom manual
                           final scale = _transformationController.value.getMaxScaleOnAxis();
-                          final pct = (((scale - _minScale) / (_maxScale - _minScale)) * 100).round().clamp(0, 100);
+                          final pct = (scale * 100).round().clamp(50, 300);
                           if (pct != _zoomPercent) setState(() => _zoomPercent = pct);
                         },
                         child: RotatedBox(
@@ -307,107 +306,9 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                         ),
                       ),
 
-                      // Zoom Bar Horizontal: 🔍 Zoom  −  100%  +
-                      Positioned(
-                        bottom: 46,
-                        left: 20,
-                        right: 20,
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.search, color: Colors.grey, size: 18),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  "Zoom",
-                                  style: TextStyle(
-                                    color: Colors.black87,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                // Tombol −
-                                GestureDetector(
-                                  onTap: _zoomPercent > 0 ? _zoomOut : null,
-                                  child: Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: _zoomPercent > 0
-                                          ? const Color(0xFFF1F5F9)
-                                          : const Color(0xFFE2E8F0),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Icon(
-                                      Icons.remove,
-                                      size: 18,
-                                      color: _zoomPercent > 0
-                                          ? Colors.black87
-                                          : Colors.grey[400],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                // Label persen
-                                SizedBox(
-                                  width: 42,
-                                  child: Text(
-                                    "$_zoomPercent%",
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                // Tombol +
-                                GestureDetector(
-                                  onTap: _zoomPercent < 100 ? _zoomIn : null,
-                                  child: Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: _zoomPercent < 100
-                                          ? const Color(0xFFF1F5F9)
-                                          : const Color(0xFFE2E8F0),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Icon(
-                                      Icons.add,
-                                      size: 18,
-                                      color: _zoomPercent < 100
-                                          ? Colors.black87
-                                          : Colors.grey[400],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
                       // Badge Hijau Teks Terdeteksi
                       Positioned(
-                        bottom: 8,
+                        bottom: 12,
                         left: 20,
                         right: 20,
                         child: Container(
@@ -441,6 +342,97 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                     ],
                   ),
                 ),
+              ),
+            ),
+
+            // --- Zoom Bar Horizontal (Persis Figma) ---
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.18),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, color: Color(0xFF475569), size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Zoom",
+                    style: TextStyle(
+                      color: Color(0xFF1E293B),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Tombol −
+                  GestureDetector(
+                    onTap: _zoomPercent > 50 ? _zoomOut : null,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: _zoomPercent > 50
+                            ? const Color(0xFFF1F5F9)
+                            : const Color(0xFFE2E8F0),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.remove,
+                        size: 18,
+                        color: _zoomPercent > 50
+                            ? const Color(0xFF1E293B)
+                            : Colors.grey[400],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Label Persen (misal 100%)
+                  SizedBox(
+                    width: 48,
+                    child: Text(
+                      "$_zoomPercent%",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF1E293B),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Tombol +
+                  GestureDetector(
+                    onTap: _zoomPercent < 300 ? _zoomIn : null,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: _zoomPercent < 300
+                            ? const Color(0xFFF1F5F9)
+                            : const Color(0xFFE2E8F0),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.add,
+                        size: 18,
+                        color: _zoomPercent < 300
+                            ? const Color(0xFF1E293B)
+                            : Colors.grey[400],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
