@@ -303,36 +303,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   GestureDetector(
                     onLongPress: _showSettingsDialog,
-                    child: Row(
-                      children: [
-                        Image.asset(
-                          'assets/images/logo.png',
-                          height: 38,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: primaryCol,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.hearing,
-                              color: _isHighContrast ? Colors.black : Colors.white,
-                              size: 24,
-                            ),
-                          ),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 44,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: primaryCol,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "BACO",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            color: primaryCol,
-                            letterSpacing: 0.5,
-                          ),
+                        child: Icon(
+                          Icons.hearing,
+                          color: _isHighContrast ? Colors.black : Colors.white,
+                          size: 24,
                         ),
-                      ],
+                      ),
                     ),
                   ),
                   // Toggle Bahasa Pill
