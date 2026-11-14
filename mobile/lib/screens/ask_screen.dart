@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,12 +33,86 @@ class _AskScreenState extends State<AskScreen> {
   String? _userQuestion;
   String? _aiAnswer;
   double _currentSpeed = 1.0;
+  bool _isAudioPlaying = false;
+  Timer? _playbackTimer;
+  int _audioElapsed = 0;
+  int _audioTotal = 15;
 
   @override
   void initState() {
     super.initState();
     _currentBahasa = widget.bahasa;
     _currentSpeed = _ttsService.currentMultiplier;
+  }
+
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return "$m:${s.toString().padLeft(2, '0')}";
+  }
+
+  void _startAudioPlayback(String text) {
+    _playbackTimer?.cancel();
+    final words = text.split(RegExp(r'\s+')).length;
+    final estimated = ((words / (2.6 * _currentSpeed)).ceil()).clamp(4, 180);
+
+    setState(() {
+      _isAudioPlaying = true;
+      _audioElapsed = 0;
+      _audioTotal = estimated;
+    });
+
+    _ttsService.onCompletion = () {
+      if (mounted) {
+        _playbackTimer?.cancel();
+        setState(() {
+          _isAudioPlaying = false;
+          _audioElapsed = 0;
+        });
+      }
+    };
+
+    _ttsService.speak(text);
+
+    _playbackTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_audioElapsed < _audioTotal) {
+        setState(() {
+          _audioElapsed++;
+        });
+      } else {
+        timer.cancel();
+        setState(() {
+          _isAudioPlaying = false;
+          _audioElapsed = 0;
+        });
+      }
+    });
+  }
+
+  void _stopAudioPlayback() {
+    _playbackTimer?.cancel();
+    _ttsService.stop();
+    if (mounted) {
+      setState(() {
+        _isAudioPlaying = false;
+        _audioElapsed = 0;
+      });
+    }
+  }
+
+  void _toggleAudioPlayback() {
+    HapticFeedback.selectionClick();
+    if (_isAudioPlaying) {
+      _stopAudioPlayback();
+    } else {
+      if (_aiAnswer != null && _aiAnswer!.isNotEmpty) {
+        _startAudioPlayback(_aiAnswer!);
+      }
+    }
   }
 
   void _cycleSpeed() async {
@@ -61,8 +136,8 @@ class _AskScreenState extends State<AskScreen> {
 
     await _ttsService.setSpeedMultiplier(nextSpeed);
 
-    if (_aiAnswer != null) {
-      _ttsService.speak(_aiAnswer!);
+    if (_isAudioPlaying && _aiAnswer != null) {
+      _startAudioPlayback(_aiAnswer!);
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -76,6 +151,8 @@ class _AskScreenState extends State<AskScreen> {
 
   @override
   void dispose() {
+    _playbackTimer?.cancel();
+    _ttsService.onCompletion = null;
     _ttsService.stop();
     _audioRecorder.dispose();
     _textController.dispose();
@@ -153,13 +230,13 @@ class _AskScreenState extends State<AskScreen> {
         _isLoading = false;
       });
 
-      _ttsService.speak(answer);
+      _startAudioPlayback(answer);
     } catch (e) {
       setState(() {
         _aiAnswer = "Jawaban: Pembayaran harus dilakukan sebelum batas tenggat agar kepesertaan tetap aktif.";
         _isLoading = false;
       });
-      _ttsService.speak(_aiAnswer!);
+      _startAudioPlayback(_aiAnswer!);
     }
   }
 
@@ -488,40 +565,50 @@ class _AskScreenState extends State<AskScreen> {
                             const SizedBox(height: 12),
 
                             // Tombol Putar Suara Jawaban
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E56A0),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.play_arrow,
-                                        color: Colors.white, size: 22),
-                                    onPressed: () => _ttsService.speak(_aiAnswer!),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    "Putar Suara Jawaban",
-                                    style: TextStyle(
+                            InkWell(
+                              onTap: _toggleAudioPlayback,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E56A0),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _isAudioPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
                                       color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                      size: 24,
                                     ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  const Icon(Icons.graphic_eq,
-                                      color: Colors.white70, size: 20),
-                                  const SizedBox(width: 6),
-                                  const Text("0:22",
-                                      style: TextStyle(
-                                          color: Colors.white70, fontSize: 12)),
-                                ],
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _isAudioPlaying
+                                          ? "Jeda Suara Jawaban"
+                                          : "Putar Suara Jawaban",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Icon(Icons.graphic_eq,
+                                        color: Colors.white70, size: 20),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _isAudioPlaying
+                                          ? "${_formatDuration(_audioElapsed)} / ${_formatDuration(_audioTotal)}"
+                                          : _formatDuration(_audioTotal),
+                                      style: const TextStyle(
+                                          color: Colors.white70, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 14),

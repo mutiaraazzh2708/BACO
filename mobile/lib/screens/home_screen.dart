@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,11 +24,134 @@ class _HomeScreenState extends State<HomeScreen> {
   double _fontScale = 1.0; // 0.9 = Kecil, 1.0 = Normal, 1.15 = Besar
   int _currentNavIndex = 0; // Selalu 0 (Beranda) saat berada di layar utama
   bool _isHighContrast = false; // Mode Kontras Tinggi Standar WCAG
+  bool _isPanduanPlaying = false;
+  Timer? _panduanTimer;
+  int _panduanElapsed = 0;
+  int _panduanTotal = 18;
+  double _currentSpeed = 1.0;
 
   @override
   void initState() {
     super.initState();
     _ttsService.init();
+    _currentSpeed = _ttsService.currentMultiplier;
+  }
+
+  @override
+  void dispose() {
+    _panduanTimer?.cancel();
+    _ttsService.onCompletion = null;
+    _ttsService.stop();
+    super.dispose();
+  }
+
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return "$m:${s.toString().padLeft(2, '0')}";
+  }
+
+  void _cycleSpeed() async {
+    HapticFeedback.selectionClick();
+    double nextSpeed;
+    String label;
+    if (_currentSpeed == 1.0) {
+      nextSpeed = 1.25;
+      label = "1.25x (Cepat)";
+    } else if (_currentSpeed == 1.25) {
+      nextSpeed = 0.75;
+      label = "0.75x (Pelan & Jelas untuk Lansia)";
+    } else {
+      nextSpeed = 1.0;
+      label = "1.0x (Normal)";
+    }
+
+    setState(() {
+      _currentSpeed = nextSpeed;
+    });
+
+    await _ttsService.setSpeedMultiplier(nextSpeed);
+
+    if (_isPanduanPlaying) {
+      _startPanduanVoice();
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Kecepatan Suara: $label"),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _startPanduanVoice() {
+    _panduanTimer?.cancel();
+    final text = _selectedBahasa == 'min'
+        ? "Salamaik datang di BACO! Asisten Suara untuak Mambaco Dokumen Layanan Publik. "
+          "Takan tombol Foto Dokumen di bawah untuak mamoto surek sanak, nantik ambo bacoan intinyo."
+        : "Selamat datang di BACO! Asisten suara untuk memahami dokumen resmi. "
+          "Arahkan kamera ke surat atau dokumen Anda, tekan tombol Foto Dokumen di bawah, "
+          "dan BACO akan membacakan rangkumannya dengan suara jernih.";
+
+    final words = text.split(RegExp(r'\s+')).length;
+    final estimated = ((words / (2.6 * _currentSpeed)).ceil()).clamp(5, 60);
+
+    setState(() {
+      _isPanduanPlaying = true;
+      _panduanElapsed = 0;
+      _panduanTotal = estimated;
+    });
+
+    _ttsService.onCompletion = () {
+      if (mounted) {
+        _panduanTimer?.cancel();
+        setState(() {
+          _isPanduanPlaying = false;
+          _panduanElapsed = 0;
+        });
+      }
+    };
+
+    _ttsService.speak(text);
+
+    _panduanTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_panduanElapsed < _panduanTotal) {
+        setState(() {
+          _panduanElapsed++;
+        });
+      } else {
+        timer.cancel();
+        setState(() {
+          _isPanduanPlaying = false;
+          _panduanElapsed = 0;
+        });
+      }
+    });
+  }
+
+  void _stopPanduanVoice() {
+    _panduanTimer?.cancel();
+    _ttsService.stop();
+    if (mounted) {
+      setState(() {
+        _isPanduanPlaying = false;
+        _panduanElapsed = 0;
+      });
+    }
+  }
+
+  void _togglePanduanVoice() {
+    HapticFeedback.selectionClick();
+    if (_isPanduanPlaying) {
+      _stopPanduanVoice();
+    } else {
+      _startPanduanVoice();
+    }
   }
 
   void _toggleHighContrast() {
@@ -78,22 +202,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentNavIndex = 0;
         });
       }
-    }
-  }
-
-  void _playIntroVoice() {
-    HapticFeedback.selectionClick();
-    if (_selectedBahasa == 'min') {
-      _ttsService.speak(
-        "Salamaik datang di BACO! Asisten Suara untuak Mambaco Dokumen Layanan Publik. "
-        "Takan tombol Foto Dokumen di bawah untuak mamoto surek sanak, nantik ambo bacoan intinyo.",
-      );
-    } else {
-      _ttsService.speak(
-        "Selamat datang di BACO! Asisten suara untuk memahami dokumen resmi. "
-        "Arahkan kamera ke surat atau dokumen Anda, tekan tombol Foto Dokumen di bawah, "
-        "dan BACO akan membacakan rangkumannya dengan suara jernih.",
-      );
     }
   }
 
@@ -492,16 +600,52 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                isMinang ? "Danga patunjuak 20 datiak" : "Dengarkan petunjuk 20 detik",
+                                _isPanduanPlaying
+                                    ? "${_formatDuration(_panduanElapsed)} / ${_formatDuration(_panduanTotal)}"
+                                    : (isMinang ? "Danga patunjuak 20 datiak" : "Dengarkan petunjuk 20 detik"),
                                 style: TextStyle(
                                   fontSize: 13 * _fontScale,
-                                  color: _isHighContrast ? Colors.white70 : Colors.grey[600],
+                                  color: _isPanduanPlaying
+                                      ? primaryCol
+                                      : (_isHighContrast ? Colors.white70 : Colors.grey[600]),
+                                  fontWeight: _isPanduanPlaying ? FontWeight.bold : FontWeight.normal,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Icon(Icons.graphic_eq, color: primaryCol, size: 30),
+                        // Badge Kecepatan Suara Panduan
+                        InkWell(
+                          onTap: _cycleSpeed,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _isHighContrast ? const Color(0xFF262626) : const Color(0xFFEBF3FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF93C5FD),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.speed, size: 14, color: primaryCol),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${_currentSpeed}x",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryCol,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.graphic_eq, color: primaryCol, size: 26),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -509,18 +653,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: _playIntroVoice,
-                        icon: const Icon(Icons.play_arrow, size: 22),
+                        onPressed: _togglePanduanVoice,
+                        icon: Icon(_isPanduanPlaying ? Icons.pause : Icons.play_arrow, size: 22),
                         label: Text(
-                          isMinang ? "Danga Panduan Suara 🔊" : "Dengarkan Panduan Suara 🔊",
+                          _isPanduanPlaying
+                              ? (isMinang ? "Hantian Panduan Suaro ⏸" : "Hentikan Panduan Suara ⏸")
+                              : (isMinang ? "Danga Panduan Suara 🔊" : "Dengarkan Panduan Suara 🔊"),
                           style: TextStyle(
                             fontSize: 14 * _fontScale,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFEBF3FF),
-                          foregroundColor: _isHighContrast ? Colors.black : const Color(0xFF1E56A0),
+                          backgroundColor: _isHighContrast
+                              ? const Color(0xFFFFD700)
+                              : (_isPanduanPlaying ? const Color(0xFF1E56A0) : const Color(0xFFEBF3FF)),
+                          foregroundColor: _isHighContrast
+                              ? Colors.black
+                              : (_isPanduanPlaying ? Colors.white : const Color(0xFF1E56A0)),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

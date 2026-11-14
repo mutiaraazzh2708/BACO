@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,9 +26,12 @@ class _ResultScreenState extends State<ResultScreen> {
   final TtsService _ttsService = TtsService();
   late String _currentBahasa;
   double _fontScale = 1.0;
-  bool _isPlaying = true;
+  bool _isPlaying = false;
   bool _isHighContrast = false;
   double _currentSpeed = 1.0;
+  Timer? _playbackTimer;
+  int _elapsedSeconds = 0;
+  int _totalSeconds = 20;
 
   @override
   void initState() {
@@ -39,21 +43,70 @@ class _ResultScreenState extends State<ResultScreen> {
 
   @override
   void dispose() {
+    _playbackTimer?.cancel();
+    _ttsService.onCompletion = null;
     _ttsService.stop();
     super.dispose();
   }
 
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return "$m:${s.toString().padLeft(2, '0')}";
+  }
+
   void _speakContent() {
-    setState(() => _isPlaying = true);
+    _playbackTimer?.cancel();
     final text = widget.result.toSpeechText(bahasa: _currentBahasa);
+    final words = text.split(RegExp(r'\s+')).length;
+    final estimated = ((words / (2.6 * _currentSpeed)).ceil()).clamp(5, 300);
+
+    setState(() {
+      _isPlaying = true;
+      _elapsedSeconds = 0;
+      _totalSeconds = estimated;
+    });
+
+    _ttsService.onCompletion = () {
+      if (mounted) {
+        _playbackTimer?.cancel();
+        setState(() {
+          _isPlaying = false;
+          _elapsedSeconds = 0;
+        });
+      }
+    };
+
     _ttsService.speak(text);
+
+    _playbackTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_elapsedSeconds < _totalSeconds) {
+        setState(() {
+          _elapsedSeconds++;
+        });
+      } else {
+        timer.cancel();
+        setState(() {
+          _isPlaying = false;
+          _elapsedSeconds = 0;
+        });
+      }
+    });
   }
 
   void _togglePlayPause() {
     HapticFeedback.selectionClick();
     if (_isPlaying) {
+      _playbackTimer?.cancel();
       _ttsService.stop();
-      setState(() => _isPlaying = false);
+      setState(() {
+        _isPlaying = false;
+        _elapsedSeconds = 0;
+      });
     } else {
       _speakContent();
     }
@@ -335,9 +388,13 @@ class _ResultScreenState extends State<ResultScreen> {
                                   Icon(Icons.graphic_eq, color: primaryCol, size: 20),
                                   const SizedBox(width: 6),
                                   Text(
-                                    isMinang
-                                        ? "Sedang mambacoan isi surek..."
-                                        : "Sedang membacakan isi surat...",
+                                    _isPlaying
+                                        ? (isMinang
+                                            ? "Sedang mambacoan isi surek..."
+                                            : "Sedang membacakan isi surat...")
+                                        : (isMinang
+                                            ? "Putar suaro untuak mandanga..."
+                                            : "Putar suara untuk mendengarkan..."),
                                     style: TextStyle(
                                       fontSize: 13 * _fontScale,
                                       fontWeight: FontWeight.bold,
@@ -348,7 +405,9 @@ class _ResultScreenState extends State<ResultScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "01:24 / 02:40",
+                                _isPlaying
+                                    ? "${_formatDuration(_elapsedSeconds)} / ${_formatDuration(_totalSeconds)}"
+                                    : "0:00 / ${_formatDuration(_totalSeconds)}",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: _isHighContrast ? Colors.white70 : Colors.grey[600],

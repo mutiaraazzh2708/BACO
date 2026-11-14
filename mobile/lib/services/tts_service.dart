@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TtsService {
@@ -8,6 +9,9 @@ class TtsService {
   final FlutterTts _tts = FlutterTts();
   bool _isPlaying = false;
   double _currentMultiplier = 1.0;
+
+  VoidCallback? onStart;
+  VoidCallback? onCompletion;
 
   bool get isPlaying => _isPlaying;
   double get currentMultiplier => _currentMultiplier;
@@ -20,14 +24,22 @@ class TtsService {
 
     _tts.setStartHandler(() {
       _isPlaying = true;
+      onStart?.call();
     });
 
     _tts.setCompletionHandler(() {
       _isPlaying = false;
+      onCompletion?.call();
     });
 
     _tts.setErrorHandler((msg) {
       _isPlaying = false;
+      onCompletion?.call();
+    });
+
+    _tts.setCancelHandler(() {
+      _isPlaying = false;
+      onCompletion?.call();
     });
   }
 
@@ -45,11 +57,13 @@ class TtsService {
     if (text.isEmpty) return;
     await stop();
     _isPlaying = true;
+    onStart?.call();
     await _tts.speak(text);
   }
 
   Future<void> stop() async {
     _isPlaying = false;
     await _tts.stop();
+    onCompletion?.call();
   }
 }
