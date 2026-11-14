@@ -288,36 +288,6 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                                 padding: EdgeInsets.zero,
                               ),
                               const Divider(height: 8, color: Colors.white24),
-                              // Tombol Zoom +
-                              IconButton(
-                                icon: const Icon(Icons.add, color: Colors.white, size: 22),
-                                tooltip: "Perbesar (+10%)",
-                                onPressed: _zoomPercent < 100 ? _zoomIn : null,
-                                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
-                                padding: EdgeInsets.zero,
-                              ),
-                              // Label persentase zoom
-                              Container(
-                                width: 38,
-                                alignment: Alignment.center,
-                                padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text(
-                                  "$_zoomPercent%",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              // Tombol Zoom -
-                              IconButton(
-                                icon: const Icon(Icons.remove, color: Colors.white, size: 22),
-                                tooltip: "Perkecil (-10%)",
-                                onPressed: _zoomPercent > 0 ? _zoomOut : null,
-                                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
-                                padding: EdgeInsets.zero,
-                              ),
                               IconButton(
                                 icon: const Icon(Icons.rotate_right, color: Colors.white, size: 24),
                                 tooltip: "Putar 90°",
@@ -337,21 +307,99 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                         ),
                       ),
 
-                      // Hint Bawah: Cubit untuk zoom atau potong
+                      // Zoom Bar Horizontal: 🔍 Zoom  −  100%  +
                       Positioned(
                         bottom: 46,
                         left: 20,
                         right: 20,
                         child: Center(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(14),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: const Text(
-                              "🔍 Cubit atau tekan +/- untuk Zoom • Tekan ✂️ untuk Potong",
-                              style: TextStyle(color: Colors.white70, fontSize: 11),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.search, color: Colors.grey, size: 18),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  "Zoom",
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                // Tombol −
+                                GestureDetector(
+                                  onTap: _zoomPercent > 0 ? _zoomOut : null,
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: _zoomPercent > 0
+                                          ? const Color(0xFFF1F5F9)
+                                          : const Color(0xFFE2E8F0),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Icon(
+                                      Icons.remove,
+                                      size: 18,
+                                      color: _zoomPercent > 0
+                                          ? Colors.black87
+                                          : Colors.grey[400],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Label persen
+                                SizedBox(
+                                  width: 42,
+                                  child: Text(
+                                    "$_zoomPercent%",
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Tombol +
+                                GestureDetector(
+                                  onTap: _zoomPercent < 100 ? _zoomIn : null,
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: _zoomPercent < 100
+                                          ? const Color(0xFFF1F5F9)
+                                          : const Color(0xFFE2E8F0),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 18,
+                                      color: _zoomPercent < 100
+                                          ? Colors.black87
+                                          : Colors.grey[400],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
