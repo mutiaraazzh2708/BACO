@@ -115,6 +115,44 @@ class ApiService {
     }
   }
 
+  /// POST /api/translate : JSON {hasil, bahasa} -> hasil dalam Minang
+  Future<AnalysisResult> translateToMinang(AnalysisResult original) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/translate');
+      // Konversi AnalysisResult ke Map untuk dikirim ke backend
+      final Map<String, dynamic> payload = {
+        'hasil': {
+          'judul': original.judul,
+          'jenis_dokumen': original.jenisDokumen.replaceFirst('Dokumen: ', ''),
+          'penjelasan': original.penjelasan,
+          'tenggat': original.tenggat,
+          'tenggat_sub': original.tenggatSub,
+          'nominal': original.nominal,
+          'nominal_sub': original.nominalSub,
+          'tindakan': original.tindakan,
+          'saran_pertanyaan': original.saranPertanyaan,
+        },
+        'bahasa': 'min',
+      };
+      final response = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        return AnalysisResult.fromJson(data);
+      } else {
+        throw Exception('Gagal terjemah ke Minang (Status: ${response.statusCode})');
+      }
+    } catch (e) {
+      throw Exception('Gagal terjemah: $e');
+    }
+  }
+
   /// POST /api/ask : JSON {"pertanyaan","konteks","bahasa"} -> {"jawaban"}
   Future<String> askQuestion({
     required String pertanyaan,

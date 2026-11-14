@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/analysis_result.dart';
+import '../services/api_service.dart';
 import '../services/tts_service.dart';
 import 'ask_screen.dart';
 
@@ -24,7 +25,10 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   final TtsService _ttsService = TtsService();
+  final ApiService _apiService = ApiService();
   late String _currentBahasa;
+  late AnalysisResult _currentResult; // Data aktif (bisa ID atau Minang)
+  bool _isTranslating = false; // Loading spinner saat menerjemah
   int _zoomPercent = 0; // Rentang 0% s/d 100%
   double _fontScale = 1.0;
   bool _isPlaying = false;
@@ -58,6 +62,7 @@ class _ResultScreenState extends State<ResultScreen> {
   void initState() {
     super.initState();
     _currentBahasa = widget.bahasa;
+    _currentResult = widget.result; // Mulai dengan data asli
     _currentSpeed = _ttsService.currentMultiplier;
     _speakContent();
   }
@@ -78,7 +83,7 @@ class _ResultScreenState extends State<ResultScreen> {
 
   void _speakContent() {
     _playbackTimer?.cancel();
-    final text = widget.result.toSpeechText(bahasa: _currentBahasa);
+    final text = _currentResult.toSpeechText(bahasa: _currentBahasa);
     final estimated = ((text.length / (11.5 * _currentSpeed)).ceil()).clamp(5, 360);
 
     setState(() {
@@ -177,6 +182,46 @@ class _ResultScreenState extends State<ResultScreen> {
     });
   }
 
+  /// Ganti bahasa: jika ke Minang, fetch terjemahan dari backend dulu
+  Future<void> _switchBahasa(String bahasa) async {
+    HapticFeedback.selectionClick();
+    if (_currentBahasa == bahasa) return;
+
+    if (bahasa == 'min') {
+      // Minta terjemahan dari backend
+      setState(() => _isTranslating = true);
+      try {
+        final translated = await _apiService.translateToMinang(widget.result);
+        if (mounted) {
+          setState(() {
+            _currentBahasa = 'min';
+            _currentResult = translated;
+            _isTranslating = false;
+          });
+          _speakContent();
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isTranslating = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menerjemah ke Minang: $e'),
+              backgroundColor: Colors.red[700],
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } else {
+      // Kembali ke Indonesia: gunakan data asli
+      setState(() {
+        _currentBahasa = 'id';
+        _currentResult = widget.result;
+      });
+      _speakContent();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMinang = _currentBahasa == 'min';
@@ -227,11 +272,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _currentBahasa = 'id');
-                          _speakContent();
-                        },
+                        onTap: () => _switchBahasa('id'),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
@@ -265,11 +306,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _currentBahasa = 'min');
-                          _speakContent();
-                        },
+                        onTap: () => _switchBahasa('min'),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
@@ -277,16 +314,27 @@ class _ResultScreenState extends State<ResultScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            "Baso Minang",
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: _currentBahasa == 'min'
-                                  ? (_isHighContrast ? Colors.black : Colors.white)
-                                  : (_isHighContrast ? Colors.white70 : Colors.grey[700]),
-                            ),
-                          ),
+                          child: _isTranslating
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      _isHighContrast ? Colors.black : Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  "Baso Minang",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: _currentBahasa == 'min'
+                                        ? (_isHighContrast ? Colors.black : Colors.white)
+                                        : (_isHighContrast ? Colors.white70 : Colors.grey[700]),
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -536,7 +584,7 @@ class _ResultScreenState extends State<ResultScreen> {
                         border: _isHighContrast ? Border.all(color: const Color(0xFFFFD700)) : null,
                       ),
                       child: Text(
-                        '"${widget.result.tenggatSub}"',
+                        '"${_currentResult.tenggatSub}"',
                         style: TextStyle(
                           fontSize: 13 * _fontScale,
                           fontWeight: FontWeight.w600,
@@ -572,7 +620,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           const Icon(Icons.check_circle, size: 14, color: Color(0xFF34D399)),
                           const SizedBox(width: 6),
                           Text(
-                            widget.result.jenisDokumen,
+                            _currentResult.jenisDokumen,
                             style: TextStyle(
                               fontSize: 11 * _fontScale,
                               fontWeight: FontWeight.bold,
@@ -584,7 +632,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      widget.result.judul,
+                      _currentResult.judul,
                       style: TextStyle(
                         fontSize: 18 * _fontScale,
                         fontWeight: FontWeight.w900,
@@ -608,10 +656,10 @@ class _ResultScreenState extends State<ResultScreen> {
                             color: _isHighContrast ? Colors.white70 : Colors.grey[600],
                           ),
                         ),
-                        if (widget.result.nomorPeserta.isNotEmpty) ...[
+                        if (_currentResult.nomorPeserta.isNotEmpty) ...[
                           const SizedBox(width: 14),
                           Text(
-                            "No. Berkas: ${widget.result.nomorPeserta}",
+                            "No. Berkas: ${_currentResult.nomorPeserta}",
                             style: TextStyle(
                               fontSize: 12 * _fontScale,
                               fontWeight: FontWeight.bold,
@@ -655,7 +703,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      widget.result.penjelasan,
+                      _currentResult.penjelasan,
                       style: TextStyle(
                         fontSize: 14.5 * _fontScale,
                         color: textCol,
@@ -706,7 +754,7 @@ class _ResultScreenState extends State<ResultScreen> {
                                   color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFB45309)),
                               const SizedBox(width: 6),
                               Text(
-                                "TENGGAT WAKTU",
+                                isMinang ? "BATAS WAKATU" : "TENGGAT WAKTU",
                                 style: TextStyle(
                                   fontSize: 11 * _fontScale,
                                   fontWeight: FontWeight.bold,
@@ -716,9 +764,9 @@ class _ResultScreenState extends State<ResultScreen> {
                             ],
                           ),
                         ),
-                        if (widget.result.tenggat != 'Tidak ada' && widget.result.tenggat.isNotEmpty)
+                        if (_currentResult.tenggat != 'Tidak ada' && _currentResult.tenggat.isNotEmpty)
                           Text(
-                            "Tercatat di Dokumen",
+                            isMinang ? "Tatulih di Surek" : "Tercatat di Dokumen",
                             style: TextStyle(
                               fontSize: 12 * _fontScale,
                               fontWeight: FontWeight.bold,
@@ -729,7 +777,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      widget.result.tenggat,
+                      _currentResult.tenggat,
                       style: TextStyle(
                         fontSize: 24 * _fontScale,
                         fontWeight: FontWeight.w900,
@@ -738,7 +786,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.result.tenggatSub,
+                      _currentResult.tenggatSub,
                       style: TextStyle(
                         fontSize: 13 * _fontScale,
                         color: _isHighContrast ? Colors.white70 : Colors.grey[600],
@@ -774,7 +822,7 @@ class _ResultScreenState extends State<ResultScreen> {
                               color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E40AF)),
                           const SizedBox(width: 6),
                           Text(
-                            "JUMLAH YANG HARUS DIBAYAR",
+                            isMinang ? "JUMLAH NAN PARALU DIBAYIA" : "JUMLAH YANG HARUS DIBAYAR",
                             style: TextStyle(
                               fontSize: 11 * _fontScale,
                               fontWeight: FontWeight.bold,
@@ -786,7 +834,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      widget.result.nominal,
+                      _currentResult.nominal,
                       style: TextStyle(
                         fontSize: 26 * _fontScale,
                         fontWeight: FontWeight.w900,
@@ -795,7 +843,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.result.nominalSub,
+                      _currentResult.nominalSub,
                       style: TextStyle(
                         fontSize: 13 * _fontScale,
                         color: _isHighContrast ? Colors.white70 : Colors.grey[600],
@@ -809,7 +857,7 @@ class _ResultScreenState extends State<ResultScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        "Rincian: ${widget.result.rincian}",
+                        "Rincian: ${_currentResult.rincian}",
                         style: TextStyle(
                           fontSize: 12 * _fontScale,
                           color: _isHighContrast ? Colors.white70 : Colors.grey[700],
@@ -844,7 +892,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           const Icon(Icons.check_box, size: 14, color: Color(0xFF34D399)),
                           const SizedBox(width: 6),
                           Text(
-                            "CARA & TINDAKAN",
+                            isMinang ? "CARO JO TINDAKAN" : "CARA & TINDAKAN",
                             style: TextStyle(
                               fontSize: 11 * _fontScale,
                               fontWeight: FontWeight.bold,
@@ -855,7 +903,7 @@ class _ResultScreenState extends State<ResultScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    for (int i = 0; i < widget.result.langkahTindakan.length; i++) ...[
+                    for (int i = 0; i < _currentResult.langkahTindakan.length; i++) ...[
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -879,7 +927,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              widget.result.langkahTindakan[i],
+                              _currentResult.langkahTindakan[i],
                               style: TextStyle(
                                 fontSize: 13.5 * _fontScale,
                                 color: textCol,
@@ -889,7 +937,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           ),
                         ],
                       ),
-                      if (i < widget.result.langkahTindakan.length - 1)
+                      if (i < _currentResult.langkahTindakan.length - 1)
                         const SizedBox(height: 10),
                     ],
                   ],
@@ -951,12 +999,12 @@ class _ResultScreenState extends State<ResultScreen> {
                     HapticFeedback.mediumImpact();
                     _ttsService.stop();
 
-                    String docTitle = widget.result.judul;
+                    String docTitle = _currentResult.judul;
                     if (docTitle.isEmpty || docTitle == "Dokumen Fisik" || docTitle == "Dokumen Terpindai") {
-                      docTitle = widget.result.jenisDokumen;
+                      docTitle = _currentResult.jenisDokumen;
                     }
-                    if (widget.result.nominal.isNotEmpty && widget.result.nominal != "Tidak ada") {
-                      docTitle = "$docTitle (${widget.result.nominal})";
+                    if (_currentResult.nominal.isNotEmpty && _currentResult.nominal != "Tidak ada") {
+                      docTitle = "$docTitle (${_currentResult.nominal})";
                     }
 
                     Navigator.push(
@@ -964,9 +1012,9 @@ class _ResultScreenState extends State<ResultScreen> {
                       MaterialPageRoute(
                         builder: (context) => AskScreen(
                           bahasa: _currentBahasa,
-                          contextDocument: widget.result.toSpeechText(bahasa: _currentBahasa),
+                          contextDocument: _currentResult.toSpeechText(bahasa: _currentBahasa),
                           documentTitle: docTitle,
-                          saranPertanyaan: widget.result.saranPertanyaan,
+                          saranPertanyaan: _currentResult.saranPertanyaan,
                         ),
                       ),
                     );

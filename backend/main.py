@@ -32,6 +32,14 @@ except ImportError as e:
         return "Kamu harus membayar sebelum tanggal 20 November 2026."
 
 try:
+    from ai import terjemah_ke_minang
+except ImportError as e:
+    print("PERINGATAN: terjemah_ke_minang belum tersedia. Sebab:", e)
+
+    def terjemah_ke_minang(hasil):
+        return hasil
+
+try:
     from ai import transkrip_suara
 except ImportError as e:
     print("PERINGATAN: transkrip_suara belum tersedia, pakai data pura-pura. Sebab:", e)
@@ -59,6 +67,11 @@ class AskRequest(BaseModel):
     pertanyaan: str
     konteks: str = ""
     bahasa: str = "id"
+
+
+class TranslateRequest(BaseModel):
+    hasil: dict
+    bahasa: str = "min"  # target bahasa, default Minang
 
 
 @app.get("/")
@@ -141,3 +154,18 @@ async def ask(req: AskRequest):
         print("ERROR ask:", e)
         raise HTTPException(503, "BACO sedang sibuk, coba lagi sebentar")
     return {"jawaban": jawaban}
+
+
+@app.post("/api/translate")
+async def translate(req: TranslateRequest):
+    """Terjemahkan hasil analisis (dict) ke Baso Minang."""
+    print(f"Translate request: target bahasa={req.bahasa}")
+    if req.bahasa != "min":
+        # Jika target bukan Minang, kembalikan apa adanya
+        return req.hasil
+    try:
+        terjemahan = await run_in_threadpool(terjemah_ke_minang, req.hasil)
+    except Exception as e:
+        print("ERROR translate:", e)
+        raise HTTPException(503, "BACO sedang sibuk, coba lagi sebentar")
+    return terjemahan
