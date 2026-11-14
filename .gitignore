@@ -2,3 +2,13 @@ venv/
 .env
 __pycache__/
 *.pyc
+
+# Mobile
+node_modules/
+.expo/
+dist/
+.dart_tool/
+build/
+.flutter-plugins*
+.gradle/
+local.properties
