@@ -45,23 +45,40 @@ GAYA_MINANG = """Panduan bahasa Minang: gunakan kalimat pendek dan kata sehari-h
 'indak' (tidak), 'bayia' (bayar), 'ambo' (saya), 'iko' (ini), 'sabalun' (sebelum),
 'lah' (sudah), 'bana' (sungguh/sangat). Hindari kata Indonesia baku jika ada padanan
 Minang yang umum. Angka, tanggal, nama tempat, dan nama instansi tetap ditulis apa adanya.
-Tulis 'surek' untuk surat, jangan memakai kata 'kaba' untuk surat."""
+Tulis 'surek' untuk surat, jangan memakai kata 'kaba' untuk surat.
+Kata 'gratis' tetap ditulis 'gratis'. Jangan menyisakan kata Indonesia seperti 'Batas akhir' atau 'Hari/Tanggal', terjemahkan semuanya.
+Pakai ejaan konsisten: 'mangambiak' (bukan 'maambiak'), dan satu bentuk 'kantua' atau 'kantor' sepanjang teks."""
 
+# "gagal": True dibaca main.py untuk memicu retry dan OCR cadangan.
 PESAN_GAGAL = {
     "penjelasan": "Maaf, BACO belum bisa membaca dokumen ini. Coba foto ulang dengan cahaya yang cukup.",
     "tenggat": "Tidak ada",
     "nominal": "Tidak ada",
     "tindakan": "Foto ulang dokumen atau coba lagi sebentar lagi.",
+    "gagal": True,
 }
 PESAN_SIBUK = {
     "penjelasan": "Maaf, layanan AI sedang sibuk. Dokumen Anda tidak bermasalah, mohon coba lagi sebentar lagi.",
     "tenggat": "Tidak ada",
     "nominal": "Tidak ada",
     "tindakan": "Tekan tombol baca dokumen sekali lagi dalam beberapa saat.",
+    "gagal": True,
 }
 
 # Kode error yang biasanya sementara: layanan penuh atau kena batas kecepatan
 _SEMENTARA = ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "overloaded", "timed out")
+
+MIME_AUDIO = {
+    ".m4a": "audio/mp4",
+    ".mp4": "audio/mp4",
+    ".aac": "audio/aac",
+    ".mp3": "audio/mp3",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".flac": "audio/flac",
+    ".3gp": "audio/3gpp",
+    ".webm": "audio/webm",
+}
 
 
 def _sementara(e: Exception) -> bool:
@@ -125,13 +142,18 @@ Jawab HANYA JSON.
     return terjemahan
 
 
-def analisis_dokumen(gambar: bytes, mime_type: str = "image/jpeg", bahasa: str = "id") -> dict:
+def analisis_dokumen(
+    gambar: bytes, mime_type: str = "image/jpeg", bahasa: str = "id", percobaan: int = 1
+) -> dict:
     """Baca foto dokumen, kembalikan dict: penjelasan, tenggat, nominal, tindakan.
-    bahasa: 'id' (Indonesia) atau 'min' (Minang). Tidak pernah melempar error."""
+    bahasa: 'id' (Indonesia) atau 'min' (Minang).
+    Kalau gagal, hasilnya berisi "gagal": True (main.py yang melakukan retry + OCR cadangan).
+    percobaan: jumlah percobaan ke Gemini di dalam fungsi ini. Tidak pernah melempar error."""
     try:
         response = _generate(
             [types.Part.from_bytes(data=gambar, mime_type=mime_type), PROMPT],
             types.GenerateContentConfig(response_mime_type="application/json"),
+            percobaan=percobaan,
         )
         data = _parse_json(response.text)
         hasil = {k: str(data.get(k, "Tidak ada")) for k in KUNCI}
@@ -180,6 +202,30 @@ Aturan:
         return "Maaf, BACO belum bisa menjawab sekarang. Coba lagi sebentar lagi."
 
 
+# Nama yang dipakai main.py (Rafa) untuk /api/ask
+tanya_jawab = jawab_pertanyaan
+
+
+def transkrip_suara(audio: bytes, suffix: str = ".m4a") -> str:
+    """Ubah rekaman suara jadi teks (untuk /api/stt). Suara bisa bahasa Indonesia atau Minang.
+    Melempar error kalau gagal atau hasilnya kosong, supaya main.py membalas 503."""
+    mime = MIME_AUDIO.get(suffix.lower(), "audio/mp4")
+    prompt = (
+        "Tuliskan persis ucapan dalam rekaman ini sebagai teks. "
+        "Pembicara bisa memakai bahasa Indonesia atau Minangkabau; tulis apa adanya sesuai yang diucapkan. "
+        "Jawab HANYA teks ucapannya, tanpa komentar, tanpa tanda kutip. "
+        "Jika tidak ada ucapan yang terdengar jelas, jawab persis: TIDAK_TERDENGAR"
+    )
+    response = _generate(
+        [types.Part.from_bytes(data=audio, mime_type=mime), prompt],
+        percobaan=2,
+    )
+    teks = (response.text or "").strip()
+    if not teks or teks == "TIDAK_TERDENGAR":
+        raise ValueError("Suara tidak terdengar jelas")
+    return teks
+
+
 if __name__ == "__main__":
     import sys
 
@@ -187,6 +233,7 @@ if __name__ == "__main__":
         print("Pemakaian:")
         print("  python backend/ai.py <foto> [id|min]")
         print('  python backend/ai.py ask "<pertanyaan>" <foto> [id|min]')
+        print("  python backend/ai.py suara <rekaman>")
         sys.exit(1)
 
     def baca(path):
@@ -194,15 +241,19 @@ if __name__ == "__main__":
         with open(path, "rb") as f:
             return f.read(), mime
 
-    if sys.argv[1] == "ask":
+    if sys.argv[1] == "suara":
+        path = sys.argv[2]
+        with open(path, "rb") as f:
+            print(transkrip_suara(f.read(), os.path.splitext(path)[1]))
+    elif sys.argv[1] == "ask":
         pertanyaan, path = sys.argv[2], sys.argv[3]
         bhs = sys.argv[4] if len(sys.argv) > 4 else "id"
         img, mime = baca(path)
-        hasil = analisis_dokumen(img, mime, bhs)
+        hasil = analisis_dokumen(img, mime, bhs, percobaan=3)
         print(json.dumps(hasil, indent=2, ensure_ascii=False))
         print("\nJAWABAN:", jawab_pertanyaan(pertanyaan, hasil, bhs))
     else:
         path = sys.argv[1]
         bhs = sys.argv[2] if len(sys.argv) > 2 else "id"
         img, mime = baca(path)
-        print(json.dumps(analisis_dokumen(img, mime, bhs), indent=2, ensure_ascii=False))
+        print(json.dumps(analisis_dokumen(img, mime, bhs, percobaan=3), indent=2, ensure_ascii=False))
