@@ -23,17 +23,21 @@ BAHASA = {
     "id": "bahasa Indonesia sederhana",
     "min": "bahasa Minangkabau yang sederhana",
 }
-KUNCI = ["penjelasan", "tenggat", "nominal", "tindakan"]
+KUNCI = ["judul", "jenis_dokumen", "penjelasan", "tenggat", "tenggat_sub", "nominal", "tindakan"]
 
-PROMPT = """Kamu adalah BACO, asisten yang membantu tunanetra dan lansia memahami dokumen resmi.
-Baca dokumen pada gambar, lalu jawab HANYA dalam JSON dengan format:
+PROMPT = """Kamu adalah BACO, asisten pintar yang membantu tunanetra dan lansia memahami dokumen fisik resmi, berkas identitas, maupun dokumen umum lainnya.
+Baca dokumen pada gambar dengan teliti, kenali APA SEBENARNYA dokumen tersebut (misal: Kartu Peserta Hackathon/Lomba, Surat Tagihan Listrik PLN, Surat BPJS Kesehatan, KTP, KK, Kartu Pelajar, Sertifikat, Tiket, dsb), lalu jawab HANYA dalam JSON dengan format:
 {
-  "penjelasan": "penjelasan sederhana 2-4 kalimat, seperti menjelaskan ke orang awam",
-  "tenggat": "semua tanggal penting (jadwal dan batas akhir), atau 'Tidak ada' jika tidak tertulis",
-  "nominal": "jumlah uang; jika dokumen menyebut gratis, tulis 'Gratis'; jika tidak ada sama sekali, tulis 'Tidak ada'",
-  "tindakan": "apa yang harus dilakukan pengguna, singkat dan jelas"
+  "judul": "nama atau judul dokumen yang sebenarnya tertulis di gambar (misal: 'Kartu Peserta AI Hackathon', 'Surat Tagihan Listrik', 'KTP Elektronik', dsb)",
+  "jenis_dokumen": "kategori dokumen (misal: 'Kartu Peserta Kegiatan', 'Tagihan Layanan Publik', 'Identitas Resmi', 'Surat Resmi', 'Dokumen Umum')",
+  "penjelasan": "penjelasan sederhana 2-4 kalimat tentang isi dokumen, siapa pihak terkait, dan maksudnya, seperti menjelaskan ke orang awam",
+  "tenggat": "semua tanggal penting (jadwal acara, tanggal terbit, atau batas akhir), atau 'Tidak ada' jika tidak tertulis",
+  "tenggat_sub": "keterangan singkat 1 kalimat tentang tanggal atau status batas waktu tersebut",
+  "nominal": "jumlah uang yang harus dibayar; jika acara/layanan gratis tulis 'Gratis'; jika tidak ada informasi uang tulis 'Tidak ada'",
+  "tindakan": "apa yang harus dilakukan pemilik dokumen, singkat dan jelas"
 }
 Tulis semua isi JSON dalam bahasa Indonesia sederhana.
+PENTING: Jangan memaksakan menyebut BPJS atau surat desa/kelurahan jika gambar adalah dokumen jenis lain! Tuliskan judul dan jenis dokumen persis sesuai fakta fisik yang terbaca di foto.
 Jangan mengarang. Jika informasi tidak ada di dokumen, tulis 'Tidak ada'.
 Jika ada beberapa angka yang harus dijumlahkan, jumlahkan dengan teliti dan tulis totalnya.
 Bedakan tanggal batas bayar dengan tanggal sanksi atau pemutusan, dan sebutkan keduanya jika ada.
@@ -51,15 +55,21 @@ Pakai ejaan konsisten: 'mangambiak' (bukan 'maambiak'), dan satu bentuk 'kantua'
 
 # "gagal": True dibaca main.py untuk memicu retry dan OCR cadangan.
 PESAN_GAGAL = {
+    "judul": "Dokumen Belum Terbaca",
+    "jenis_dokumen": "Dokumen Fisik",
     "penjelasan": "Maaf, BACO belum bisa membaca dokumen ini. Coba foto ulang dengan cahaya yang cukup.",
     "tenggat": "Tidak ada",
+    "tenggat_sub": "Tidak ada batas waktu penting",
     "nominal": "Tidak ada",
     "tindakan": "Foto ulang dokumen atau coba lagi sebentar lagi.",
     "gagal": True,
 }
 PESAN_SIBUK = {
+    "judul": "Layanan AI Sibuk",
+    "jenis_dokumen": "Dokumen Fisik",
     "penjelasan": "Maaf, layanan AI sedang sibuk. Dokumen Anda tidak bermasalah, mohon coba lagi sebentar lagi.",
     "tenggat": "Tidak ada",
+    "tenggat_sub": "Tidak ada batas waktu penting",
     "nominal": "Tidak ada",
     "tindakan": "Tekan tombol baca dokumen sekali lagi dalam beberapa saat.",
     "gagal": True,

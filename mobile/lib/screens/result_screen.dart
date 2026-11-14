@@ -595,22 +595,30 @@ class _ResultScreenState extends State<ResultScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
+                        Icon(
+                          Icons.verified,
+                          size: 14,
+                          color: _isHighContrast ? const Color(0xFFFFD700) : primaryCol,
+                        ),
+                        const SizedBox(width: 4),
                         Text(
-                          "Diterima: 14 Mei 2024",
+                          "Terverifikasi BACO AI",
                           style: TextStyle(
                             fontSize: 12 * _fontScale,
                             color: _isHighContrast ? Colors.white70 : Colors.grey[600],
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Text(
-                          "No. Peserta: ${widget.result.nomorPeserta}",
-                          style: TextStyle(
-                            fontSize: 12 * _fontScale,
-                            fontWeight: FontWeight.bold,
-                            color: textCol,
+                        if (widget.result.nomorPeserta.isNotEmpty) ...[
+                          const SizedBox(width: 14),
+                          Text(
+                            "No. Berkas: ${widget.result.nomorPeserta}",
+                            style: TextStyle(
+                              fontSize: 12 * _fontScale,
+                              fontWeight: FontWeight.bold,
+                              color: textCol,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
@@ -708,14 +716,15 @@ class _ResultScreenState extends State<ResultScreen> {
                             ],
                           ),
                         ),
-                        Text(
-                          "Tersisa 6 Hari Lagi",
-                          style: TextStyle(
-                            fontSize: 12 * _fontScale,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFFF59E0B),
+                        if (widget.result.tenggat != 'Tidak ada' && widget.result.tenggat.isNotEmpty)
+                          Text(
+                            "Tercatat di Dokumen",
+                            style: TextStyle(
+                              fontSize: 12 * _fontScale,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFF59E0B),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -920,8 +929,8 @@ class _ResultScreenState extends State<ResultScreen> {
                     const SizedBox(height: 6),
                     Text(
                       isMinang
-                          ? "BACO mambantu marangkum surek resmi. Untuak kapastian labiah lanjuik, silakan konfirmasi ka kantor BPJS Kesehatan tadakek."
-                          : "BACO membantu merangkum surat resmi. Untuk kepastian lebih lanjut, silakan konfirmasi ke kantor BPJS Kesehatan terdekat.",
+                          ? "BACO mambantu marangkum dokumen fisik & surek resmi. Untuak kapastian labiah lanjuik, silakan konfirmasi ka pihak atau instansi nan mangaluakan dokumen ko."
+                          : "BACO membantu merangkum dokumen fisik & surat resmi. Untuk kepastian lebih lanjut, silakan konfirmasi ke pihak atau instansi terkait.",
                       style: TextStyle(
                         fontSize: 12.5 * _fontScale,
                         color: _isHighContrast ? Colors.white70 : Colors.yellow[900],
@@ -942,16 +951,9 @@ class _ResultScreenState extends State<ResultScreen> {
                     HapticFeedback.mediumImpact();
                     _ttsService.stop();
 
-                    String docTitle = "Dokumen Terpindai";
-                    final p = widget.result.penjelasan.toLowerCase();
-                    if (p.contains("bpjs")) {
-                      docTitle = "Surat BPJS";
-                    } else if (p.contains("listrik") || p.contains("pln")) {
-                      docTitle = "Tagihan Listrik";
-                    } else if (p.contains("pdam") || p.contains("air")) {
-                      docTitle = "Tagihan PDAM";
-                    } else if (p.contains("desa") || p.contains("kelurahan") || p.contains("rt")) {
-                      docTitle = "Surat Desa/Kelurahan";
+                    String docTitle = widget.result.judul;
+                    if (docTitle.isEmpty || docTitle == "Dokumen Fisik" || docTitle == "Dokumen Terpindai") {
+                      docTitle = widget.result.jenisDokumen;
                     }
                     if (widget.result.nominal.isNotEmpty && widget.result.nominal != "Tidak ada") {
                       docTitle = "$docTitle (${widget.result.nominal})";
