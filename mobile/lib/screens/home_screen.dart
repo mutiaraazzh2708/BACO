@@ -20,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _selectedBahasa = 'id'; // 'id' atau 'min'
   double _fontScale = 1.0; // 0.9 = Kecil, 1.0 = Normal, 1.15 = Besar
-  int _currentNavIndex = 0;
+  int _currentNavIndex = 0; // Selalu 0 (Beranda) saat berada di layar utama
 
   @override
   void initState() {
@@ -36,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (picked != null && mounted) {
-        Navigator.push(
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => CameraPreviewScreen(
@@ -54,6 +54,13 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: Colors.red[700],
           ),
         );
+      }
+    } finally {
+      // Pastikan navbar tetap di posisi 0 (Beranda) saat kembali
+      if (mounted) {
+        setState(() {
+          _currentNavIndex = 0;
+        });
       }
     }
   }
@@ -73,20 +80,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Pengaturan IP Server rahasia (bisa dibuka dengan menekan lama logo/nama BACO)
   void _showSettingsDialog() {
     final controller = TextEditingController(text: _apiService.baseUrl);
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Pengaturan Alamat Server"),
+        title: const Text("Pengaturan Alamat Server Backend"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Masukkan alamat backend FastAPI (contoh: http://10.246.74.45:8000)",
-              style: TextStyle(fontSize: 14),
+              "Alamat server laptop untuk koneksi HP (contoh: http://10.246.74.45:8000)",
+              style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -138,31 +146,35 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E56A0),
-                          borderRadius: BorderRadius.circular(12),
+                  GestureDetector(
+                    // Tekan lama pada tulisan BACO untuk membuka pengaturan IP (rahasia)
+                    onLongPress: _showSettingsDialog,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E56A0),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.hearing,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.hearing,
-                          color: Colors.white,
-                          size: 24,
+                        const SizedBox(width: 8),
+                        const Text(
+                          "BACO",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1E56A0),
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        "BACO",
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF1E56A0),
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   // Toggle Bahasa Pill
                   Container(
@@ -236,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // --- Mode Aksesibilitas Suara Aktif Banner ---
+              // --- Mode Aksesibilitas Suara Aktif Banner (Sesuai Persis Desain Figma) ---
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
@@ -268,14 +280,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.green,
                         shape: BoxShape.circle,
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    IconButton(
-                      icon: const Icon(Icons.settings, size: 18, color: Color(0xFF1E56A0)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: "Pengaturan IP Backend",
-                      onPressed: _showSettingsDialog,
                     ),
                   ],
                 ),
@@ -434,7 +438,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        // Sound wave visualizer icon
                         const Icon(Icons.graphic_eq,
                             color: Color(0xFF1E56A0), size: 30),
                       ],
@@ -470,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 18),
 
-              // --- Tombol Utama: Foto Dokumen (Besar, Biru, ada Panah) ---
+              // --- Tombol Utama: Foto Dokumen ---
               InkWell(
                 onTap: () => _pickImage(ImageSource.camera),
                 borderRadius: BorderRadius.circular(18),
@@ -651,12 +654,15 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentNavIndex,
         selectedItemColor: const Color(0xFF1E56A0),
         unselectedItemColor: Colors.grey[500],
-        onTap: (index) {
-          setState(() => _currentNavIndex = index);
-          if (index == 1) {
+        onTap: (index) async {
+          if (index == 0) {
+            setState(() => _currentNavIndex = 0);
+          } else if (index == 1) {
+            // Pindai (Buka Kamera)
             _pickImage(ImageSource.camera);
           } else if (index == 2) {
-            Navigator.push(
+            // Tanya BACO
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => AskScreen(
@@ -665,6 +671,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             );
+            // Setelah kembali dari Tanya BACO, pastikan navbar tetap Beranda
+            if (mounted) {
+              setState(() => _currentNavIndex = 0);
+            }
           }
         },
         items: const [

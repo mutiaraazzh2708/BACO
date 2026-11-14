@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/tts_service.dart';
+import 'crop_screen.dart';
 import 'processing_screen.dart';
 
 class CameraPreviewScreen extends StatefulWidget {
@@ -23,18 +24,87 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   final ImagePicker _picker = ImagePicker();
   final TtsService _ttsService = TtsService();
 
+  final TransformationController _transformationController = TransformationController();
+  int _quarterTurns = 0; // Rotasi 90 derajat jika foto miring
+  bool _isCropped = false;
+
   @override
   void initState() {
     super.initState();
     _currentImage = widget.imageFile;
 
-    // Ucapkan panduan suara saat masuk ke layar kamera/pratinjau
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.bahasa == 'min') {
-        _ttsService.speak("Posisikan sadoalah karateh dalam bingkai, pastian nampak jaleh.");
+        _ttsService.speak("Posisikan dokumen dalam bingkai, sanak bisa cubit untuak zoom atau potong karateh.");
       } else {
-        _ttsService.speak("Posisikan seluruh kertas dalam bingkai, pastikan terlihat jelas.");
+        _ttsService.speak("Posisikan dokumen dalam bingkai, Anda dapat memperbesar, menggeser, atau memotong dokumen.");
       }
+    });
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _zoomIn() {
+    final matrix = _transformationController.value.clone();
+    matrix.scale(1.25);
+    _transformationController.value = matrix;
+  }
+
+  void _zoomOut() {
+    final matrix = _transformationController.value.clone();
+    matrix.scale(0.8);
+    _transformationController.value = matrix;
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
+    setState(() {
+      _quarterTurns = 0;
+    });
+  }
+
+  void _rotateImage() {
+    setState(() {
+      _quarterTurns = (_quarterTurns + 1) % 4;
+    });
+  }
+
+  Future<void> _openCropScreen() async {
+    final cropped = await Navigator.push<File?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CropScreen(
+          imageFile: _currentImage,
+          bahasa: widget.bahasa,
+        ),
+      ),
+    );
+
+    if (cropped != null && mounted) {
+      setState(() {
+        _currentImage = cropped;
+        _isCropped = true;
+        _transformationController.value = Matrix4.identity();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Dokumen berhasil dipotong (Crop)!"),
+          backgroundColor: Color(0xFF059669),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _revertToOriginal() {
+    setState(() {
+      _currentImage = widget.imageFile;
+      _isCropped = false;
+      _transformationController.value = Matrix4.identity();
     });
   }
 
@@ -44,6 +114,9 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
       if (picked != null) {
         setState(() {
           _currentImage = File(picked.path);
+          _isCropped = false;
+          _quarterTurns = 0;
+          _transformationController.value = Matrix4.identity();
         });
       }
     } catch (_) {}
@@ -140,8 +213,8 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                   Expanded(
                     child: Text(
                       isMinang
-                          ? 'BACO: "Posisikan sadoalah karateh dalam bingkai"'
-                          : 'BACO: "Posisikan seluruh kertas dalam bingkai"',
+                          ? 'BACO: "Posisikan dokumen, cubit untuak zoom / potong"'
+                          : 'BACO: "Posisikan dokumen, cubit zoom / potong tepi"',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -153,60 +226,140 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
               ),
             ),
 
-            // --- Area Pratinjau Dokumen ---
+            // --- Area Pratinjau Dokumen (Bisa Zoom In/Out, Geser & Putar) ---
             Expanded(
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFF1E56A0), width: 2),
+                  color: Colors.black,
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.file(
-                        _currentImage,
-                        fit: BoxFit.cover,
-                      ),
-                      // Reticle di tengah
-                      Center(
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
-                            shape: BoxShape.circle,
+                      // InteractiveViewer memungkinkan Zoom In, Zoom Out, dan Geser
+                      InteractiveViewer(
+                        transformationController: _transformationController,
+                        panEnabled: true,
+                        boundaryMargin: const EdgeInsets.all(40),
+                        minScale: 0.5,
+                        maxScale: 5.0,
+                        child: RotatedBox(
+                          quarterTurns: _quarterTurns,
+                          child: Center(
+                            child: Image.file(
+                              _currentImage,
+                              fit: BoxFit.contain, // Menampilkan seluruh dokumen utuh
+                            ),
                           ),
-                          child: const Icon(Icons.crop_free, color: Colors.white70, size: 30),
                         ),
                       ),
-                      // Badge Teks Dokumen Terdeteksi Jelas
+
+                      // Kontrol Zoom, Crop & Rotasi di Sisi Kanan Atas
                       Positioned(
-                        bottom: 14,
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.65),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Tombol Crop / Potong
+                              IconButton(
+                                icon: const Icon(Icons.crop, color: Color(0xFF38BDF8), size: 24),
+                                tooltip: "Potong Dokumen (Crop)",
+                                onPressed: _openCropScreen,
+                                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                padding: EdgeInsets.zero,
+                              ),
+                              const Divider(height: 8, color: Colors.white24),
+                              IconButton(
+                                icon: const Icon(Icons.zoom_in, color: Colors.white, size: 24),
+                                tooltip: "Perbesar (Zoom In)",
+                                onPressed: _zoomIn,
+                                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                padding: EdgeInsets.zero,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.zoom_out, color: Colors.white, size: 24),
+                                tooltip: "Perkecil (Zoom Out)",
+                                onPressed: _zoomOut,
+                                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                padding: EdgeInsets.zero,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.rotate_right, color: Colors.white, size: 24),
+                                tooltip: "Putar 90°",
+                                onPressed: _rotateImage,
+                                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                padding: EdgeInsets.zero,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.restart_alt, color: Colors.amber, size: 22),
+                                tooltip: "Reset Posisi",
+                                onPressed: _resetZoom,
+                                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                padding: EdgeInsets.zero,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Hint Bawah: Cubit untuk zoom atau potong
+                      Positioned(
+                        bottom: 46,
+                        left: 20,
+                        right: 20,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Text(
+                              "🔍 Cubit untuk Zoom • Tekan ikon ✂️ di kanan atas untuk Potong (Crop)",
+                              style: TextStyle(color: Colors.white70, fontSize: 11),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Badge Hijau Teks Terdeteksi
+                      Positioned(
+                        bottom: 8,
                         left: 20,
                         right: 20,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF065F46).withOpacity(0.9),
+                            color: const Color(0xFF065F46).withOpacity(0.92),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: const Color(0xFF34D399)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.check_circle, color: Color(0xFF34D399), size: 18),
+                              const Icon(Icons.check_circle, color: Color(0xFF34D399), size: 16),
                               const SizedBox(width: 8),
                               Text(
-                                isMinang
-                                    ? "Teks Dokumen Nampak Jaleh"
-                                    : "Teks Dokumen Terdeteksi Jelas",
+                                _isCropped
+                                    ? "Dokumen Sudah Dipotong (Teks Jelas)"
+                                    : (isMinang
+                                        ? "Teks Dokumen Nampak Jaleh"
+                                        : "Teks Dokumen Terdeteksi Jelas"),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
@@ -221,16 +374,16 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
 
             // --- Bagian Bawah Kontrol ---
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(18),
               decoration: const BoxDecoration(
                 color: Color(0xFF0F172A),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
                 children: [
-                  // Info Berkas File
+                  // Info Berkas File & Tombol Crop Cepat
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E293B),
                       borderRadius: BorderRadius.circular(14),
@@ -239,7 +392,10 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(_currentImage, width: 44, height: 44, fit: BoxFit.cover),
+                          child: RotatedBox(
+                            quarterTurns: _quarterTurns,
+                            child: Image.file(_currentImage, width: 44, height: 44, fit: BoxFit.cover),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -247,35 +403,56 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                fileName.length > 24 ? "${fileName.substring(0, 20)}...jpg" : fileName,
+                                fileName.length > 20 ? "${fileName.substring(0, 16)}...jpg" : fileName,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                                  fontSize: 13,
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.check, color: Color(0xFF34D399), size: 14),
-                                  SizedBox(width: 4),
+                                  Icon(Icons.check, color: _isCropped ? Colors.blueAccent : const Color(0xFF34D399), size: 13),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    "Siap dibacakan BACO",
-                                    style: TextStyle(color: Color(0xFF34D399), fontSize: 12),
+                                    _isCropped ? "Hasil Crop Siap" : "Siap dibacakan BACO",
+                                    style: TextStyle(
+                                      color: _isCropped ? Colors.blueAccent : const Color(0xFF34D399),
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                        TextButton(
-                          onPressed: () => _retakePhoto(ImageSource.camera),
-                          child: const Text("Ulangi", style: TextStyle(color: Colors.blueAccent)),
+                        // Tombol Potong (Crop) di kartu
+                        ElevatedButton.icon(
+                          onPressed: _openCropScreen,
+                          icon: const Icon(Icons.crop, size: 16),
+                          label: const Text("Crop", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            minimumSize: Size.zero,
+                          ),
                         ),
+                        if (_isCropped) ...[
+                          const SizedBox(width: 6),
+                          IconButton(
+                            icon: const Icon(Icons.undo, color: Colors.amber, size: 20),
+                            tooltip: "Kembalikan Foto Asli",
+                            onPressed: _revertToOriginal,
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(4),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
 
                   // 3 Tombol: Galeri, Shutter, Balik Kamera
                   Row(
@@ -285,14 +462,14 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                         children: [
                           IconButton(
                             onPressed: () => _retakePhoto(ImageSource.gallery),
-                            icon: const Icon(Icons.photo_library, color: Colors.white70, size: 28),
+                            icon: const Icon(Icons.photo_library, color: Colors.white70, size: 26),
                             style: IconButton.styleFrom(
                               backgroundColor: Colors.white.withOpacity(0.1),
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text("Galeri", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                          const Text("Galeri", style: TextStyle(color: Colors.white70, fontSize: 11)),
                         ],
                       ),
                       // Tombol Shutter Utama
@@ -305,13 +482,13 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                             border: Border.all(color: Colors.blueAccent, width: 3),
                           ),
                           child: Container(
-                            width: 62,
-                            height: 62,
+                            width: 58,
+                            height: 58,
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.white,
                             ),
-                            child: const Icon(Icons.camera_alt, color: Color(0xFF1E56A0), size: 30),
+                            child: const Icon(Icons.camera_alt, color: Color(0xFF1E56A0), size: 28),
                           ),
                         ),
                       ),
@@ -319,24 +496,24 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                         children: [
                           IconButton(
                             onPressed: () => _retakePhoto(ImageSource.camera),
-                            icon: const Icon(Icons.flip_camera_android, color: Colors.white70, size: 28),
+                            icon: const Icon(Icons.flip_camera_android, color: Colors.white70, size: 26),
                             style: IconButton.styleFrom(
                               backgroundColor: Colors.white.withOpacity(0.1),
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text("Balik Kamera", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                          const Text("Balik Kamera", style: TextStyle(color: Colors.white70, fontSize: 11)),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
 
                   // Tombol "Baca Dokumen Ini ->"
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pushReplacement(
@@ -361,10 +538,10 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                         children: [
                           Text(
                             isMinang ? "Baco Dokumen Ko" : "Baca Dokumen Ini",
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward, size: 22),
+                          const Icon(Icons.arrow_forward, size: 20),
                         ],
                       ),
                     ),
@@ -374,7 +551,7 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                     isMinang
                         ? "Manuju pamindaian jo pambacoan suaro AI"
                         : "Menuju pemindaian dan pembacaan suara AI",
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
                   ),
                 ],
               ),
@@ -385,4 +562,3 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
     );
   }
 }
-
