@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import time
 import mimetypes
 from pathlib import Path
 from dotenv import load_dotenv
@@ -52,6 +53,35 @@ PESAN_GAGAL = {
     "nominal": "Tidak ada",
     "tindakan": "Foto ulang dokumen atau coba lagi sebentar lagi.",
 }
+PESAN_SIBUK = {
+    "penjelasan": "Maaf, layanan AI sedang sibuk. Dokumen Anda tidak bermasalah, mohon coba lagi sebentar lagi.",
+    "tenggat": "Tidak ada",
+    "nominal": "Tidak ada",
+    "tindakan": "Tekan tombol baca dokumen sekali lagi dalam beberapa saat.",
+}
+
+# Kode error yang biasanya sementara: layanan penuh atau kena batas kecepatan
+_SEMENTARA = ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "overloaded", "timed out")
+
+
+def _sementara(e: Exception) -> bool:
+    return any(k.lower() in str(e).lower() for k in _SEMENTARA)
+
+
+def _generate(contents, config=None, percobaan: int = 3):
+    """Panggil Gemini, coba ulang otomatis kalau errornya sementara (503/429)."""
+    terakhir = None
+    for i in range(percobaan):
+        try:
+            return client.models.generate_content(model=MODEL, contents=contents, config=config)
+        except Exception as e:
+            terakhir = e
+            if not _sementara(e) or i == percobaan - 1:
+                break
+            jeda = 2 * (i + 1)
+            print(f"Gemini sibuk, coba lagi dalam {jeda} detik ({i + 1}/{percobaan - 1})...")
+            time.sleep(jeda)
+    raise terakhir
 
 
 def _parse_json(teks: str) -> dict:
@@ -79,10 +109,9 @@ Jawab HANYA JSON.
 {json.dumps(hasil, ensure_ascii=False)}
 
 {GAYA_MINANG}"""
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
+    response = _generate(
+        prompt,
+        types.GenerateContentConfig(response_mime_type="application/json"),
     )
     data = _parse_json(response.text)
     terjemahan = {}
@@ -100,16 +129,15 @@ def analisis_dokumen(gambar: bytes, mime_type: str = "image/jpeg", bahasa: str =
     """Baca foto dokumen, kembalikan dict: penjelasan, tenggat, nominal, tindakan.
     bahasa: 'id' (Indonesia) atau 'min' (Minang). Tidak pernah melempar error."""
     try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=[types.Part.from_bytes(data=gambar, mime_type=mime_type), PROMPT],
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        response = _generate(
+            [types.Part.from_bytes(data=gambar, mime_type=mime_type), PROMPT],
+            types.GenerateContentConfig(response_mime_type="application/json"),
         )
         data = _parse_json(response.text)
         hasil = {k: str(data.get(k, "Tidak ada")) for k in KUNCI}
     except Exception as e:
         print("ERROR Gemini (analisis):", e)
-        return dict(PESAN_GAGAL)
+        return dict(PESAN_SIBUK if _sementara(e) else PESAN_GAGAL)
 
     if bahasa == "min":
         try:
@@ -136,16 +164,19 @@ Info layanan publik (pakai hanya jika relevan dengan pertanyaan):
 Pertanyaan: {pertanyaan}
 
 Aturan:
+- Langsung jawab, tanpa menyapa atau memperkenalkan diri.
 - Jawab dalam {BAHASA.get(bahasa, BAHASA["id"])}, singkat, 1-3 kalimat, mudah dipahami lansia.
 - Hanya gunakan informasi dari isi dokumen dan info layanan publik di atas. Jika jawabannya tidak ada, katakan tidak tahu dan sarankan bertanya ke petugas atau instansi terkait.
 - Jika memakai info layanan publik, sebutkan nama instansinya (misalnya "menurut BPJS Kesehatan").
 - Jangan mengarang angka atau tanggal. Angka dan tanggal ditulis apa adanya.
 {GAYA_MINANG if bahasa == "min" else ""}"""
     try:
-        response = client.models.generate_content(model=MODEL, contents=prompt)
+        response = _generate(prompt)
         return response.text.strip()
     except Exception as e:
         print("ERROR Gemini (ask):", e)
+        if _sementara(e):
+            return "Maaf, layanan AI sedang sibuk. Coba tanya lagi sebentar lagi."
         return "Maaf, BACO belum bisa menjawab sekarang. Coba lagi sebentar lagi."
 
 

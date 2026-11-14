@@ -1,42 +1,42 @@
 [
   {
     "id": "bpjs-bayar",
-    "teks": "Iuran BPJS Kesehatan dapat dibayar melalui bank, kantor pos, minimarket, atau aplikasi Mobile JKN.",
+    "teks": "Cara membayar iuran BPJS Kesehatan: bayar lewat bank, kantor pos, minimarket, atau aplikasi Mobile JKN.",
     "sumber": "https://www.bpjs-kesehatan.go.id"
   },
   {
     "id": "bpjs-tenggat",
-    "teks": "Iuran BPJS Kesehatan dibayar setiap bulan. Pembayaran yang terlambat dapat membuat status kepesertaan tidak aktif sampai tunggakan dilunasi.",
+    "teks": "Iuran BPJS Kesehatan dibayar setiap bulan. Kalau telat bayar, status kepesertaan dapat menjadi tidak aktif sampai tunggakan dilunasi.",
     "sumber": "https://www.bpjs-kesehatan.go.id"
   },
   {
     "id": "bpjs-bantuan",
-    "teks": "Peserta yang bingung soal iuran atau status kepesertaan dapat bertanya ke kantor BPJS Kesehatan terdekat atau melalui layanan informasi resmi BPJS Kesehatan.",
+    "teks": "Kalau bingung soal iuran atau status kepesertaan BPJS Kesehatan, tanyakan ke kantor BPJS Kesehatan terdekat atau layanan informasi resmi BPJS Kesehatan.",
     "sumber": "https://www.bpjs-kesehatan.go.id"
   },
   {
     "id": "pln-bayar",
-    "teks": "Tagihan listrik pascabayar PLN dapat dibayar melalui aplikasi PLN Mobile, bank, atau minimarket.",
+    "teks": "Cara membayar tagihan listrik PLN pascabayar: bayar lewat aplikasi PLN Mobile, bank, atau minimarket.",
     "sumber": "https://web.pln.co.id"
   },
   {
     "id": "pln-telat",
-    "teks": "Tagihan listrik yang tidak dibayar sampai batas waktu dapat dikenai sanksi, termasuk pemutusan sambungan. Bayarlah sebelum batas waktu yang tertulis di tagihan.",
+    "teks": "Kalau telat bayar tagihan listrik sampai batas waktu, dapat dikenai sanksi termasuk pemutusan sambungan listrik. Bayarlah sebelum batas waktu yang tertulis di tagihan.",
     "sumber": "https://web.pln.co.id"
   },
   {
     "id": "pln-bantuan",
-    "teks": "Pertanyaan soal tagihan listrik dapat disampaikan ke kantor PLN terdekat atau melalui layanan pelanggan resmi PLN.",
+    "teks": "Kalau ada pertanyaan soal tagihan listrik, tanyakan ke kantor PLN terdekat atau layanan pelanggan resmi PLN.",
     "sumber": "https://web.pln.co.id"
   },
   {
     "id": "ktp-gratis",
-    "teks": "Pembuatan dan pengambilan KTP elektronik tidak dipungut biaya. Pengambilan biasanya di kantor kelurahan atau kecamatan dengan membawa surat pemberitahuan dan dokumen yang diminta.",
+    "teks": "Biaya ambil KTP elektronik: gratis, tidak perlu bayar. Pembuatan dan pengambilan KTP elektronik tidak dipungut biaya. Ambil KTP di kantor kelurahan atau kecamatan dengan membawa surat pemberitahuan dan dokumen yang diminta.",
     "sumber": "https://dukcapil.kemendagri.go.id"
   },
   {
     "id": "pbb-bayar",
-    "teks": "Pajak Bumi dan Bangunan (PBB-P2) dibayar sesuai SPPT dari pemerintah daerah, melalui bank atau kanal pembayaran resmi yang ditunjuk pemerintah daerah. Keterlambatan dapat dikenai denda.",
+    "teks": "Cara membayar Pajak Bumi dan Bangunan (PBB-P2): bayar sesuai SPPT dari pemerintah daerah, lewat bank atau kanal pembayaran resmi yang ditunjuk pemerintah daerah. Kalau telat bayar, dapat dikenai denda.",
     "sumber": "https://www.pajak.go.id"
   }
 ]
