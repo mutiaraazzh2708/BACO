@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:record/record.dart';
 import '../services/api_service.dart';
 import '../services/tts_service.dart';
@@ -30,11 +31,47 @@ class _AskScreenState extends State<AskScreen> {
 
   String? _userQuestion;
   String? _aiAnswer;
+  double _currentSpeed = 1.0;
 
   @override
   void initState() {
     super.initState();
     _currentBahasa = widget.bahasa;
+    _currentSpeed = _ttsService.currentMultiplier;
+  }
+
+  void _cycleSpeed() async {
+    HapticFeedback.selectionClick();
+    double nextSpeed;
+    String label;
+    if (_currentSpeed == 1.0) {
+      nextSpeed = 1.25;
+      label = "1.25x (Cepat)";
+    } else if (_currentSpeed == 1.25) {
+      nextSpeed = 0.75;
+      label = "0.75x (Pelan & Jelas untuk Lansia)";
+    } else {
+      nextSpeed = 1.0;
+      label = "1.0x (Normal)";
+    }
+
+    setState(() {
+      _currentSpeed = nextSpeed;
+    });
+
+    await _ttsService.setSpeedMultiplier(nextSpeed);
+
+    if (_aiAnswer != null) {
+      _ttsService.speak(_aiAnswer!);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Kecepatan Suara: $label"),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -417,18 +454,34 @@ class _AskScreenState extends State<AskScreen> {
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold)),
                                 const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEBF3FF),
-                                    borderRadius: BorderRadius.circular(6),
+                                InkWell(
+                                  onTap: _cycleSpeed,
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEBF3FF),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: const Color(0xFF93C5FD),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.speed,
+                                            size: 13,
+                                            color: Color(0xFF1E56A0)),
+                                        const SizedBox(width: 3),
+                                        Text("${_currentSpeed}x",
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF1E56A0),
+                                                fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
                                   ),
-                                  child: const Text("1.0x",
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF1E56A0),
-                                          fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),

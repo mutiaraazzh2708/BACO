@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/analysis_result.dart';
 import '../services/tts_service.dart';
 import 'ask_screen.dart';
@@ -25,11 +26,14 @@ class _ResultScreenState extends State<ResultScreen> {
   late String _currentBahasa;
   double _fontScale = 1.0;
   bool _isPlaying = true;
+  bool _isHighContrast = false;
+  double _currentSpeed = 1.0;
 
   @override
   void initState() {
     super.initState();
     _currentBahasa = widget.bahasa;
+    _currentSpeed = _ttsService.currentMultiplier;
     _speakContent();
   }
 
@@ -46,6 +50,7 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 
   void _togglePlayPause() {
+    HapticFeedback.selectionClick();
     if (_isPlaying) {
       _ttsService.stop();
       setState(() => _isPlaying = false);
@@ -54,12 +59,59 @@ class _ResultScreenState extends State<ResultScreen> {
     }
   }
 
+  void _cycleSpeed() async {
+    HapticFeedback.selectionClick();
+    double nextSpeed;
+    String label;
+    if (_currentSpeed == 1.0) {
+      nextSpeed = 1.25;
+      label = "1.25x (Cepat)";
+    } else if (_currentSpeed == 1.25) {
+      nextSpeed = 0.75;
+      label = "0.75x (Pelan & Jelas untuk Lansia)";
+    } else {
+      nextSpeed = 1.0;
+      label = "1.0x (Normal)";
+    }
+
+    setState(() {
+      _currentSpeed = nextSpeed;
+    });
+
+    await _ttsService.setSpeedMultiplier(nextSpeed);
+
+    if (_isPlaying) {
+      _speakContent();
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Kecepatan Suara: $label"),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _toggleHighContrast() {
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _isHighContrast = !_isHighContrast;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMinang = _currentBahasa == 'min';
 
+    final bgCol = _isHighContrast ? Colors.black : const Color(0xFFF8FAFC);
+    final cardCol = _isHighContrast ? const Color(0xFF141414) : Colors.white;
+    final primaryCol = _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0);
+    final textCol = _isHighContrast ? Colors.white : Colors.black87;
+    final borderCol = _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[200]!;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: bgCol,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -67,15 +119,15 @@ class _ResultScreenState extends State<ResultScreen> {
         ),
         title: Text(
           isMinang ? "Hasil Analisis" : "Hasil Analisis",
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textCol),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: cardCol,
+        foregroundColor: textCol,
         elevation: 0.5,
         actions: [
           IconButton(
-            icon: const Icon(Icons.hearing, color: Color(0xFF1E56A0)),
+            icon: Icon(Icons.hearing, color: primaryCol),
             onPressed: _speakContent,
           ),
         ],
@@ -89,8 +141,9 @@ class _ResultScreenState extends State<ResultScreen> {
               // --- Toggle Bahasa Pill (Bahasa Indonesia / Baso Minang) ---
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: _isHighContrast ? const Color(0xFF222222) : const Color(0xFFE2E8F0),
                   borderRadius: BorderRadius.circular(24),
+                  border: _isHighContrast ? Border.all(color: const Color(0xFFFFD700)) : null,
                 ),
                 padding: const EdgeInsets.all(4),
                 child: Row(
@@ -98,15 +151,14 @@ class _ResultScreenState extends State<ResultScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           setState(() => _currentBahasa = 'id');
                           _speakContent();
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: _currentBahasa == 'id'
-                                ? const Color(0xFF1E56A0)
-                                : Colors.transparent,
+                            color: _currentBahasa == 'id' ? primaryCol : Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           alignment: Alignment.center,
@@ -114,7 +166,9 @@ class _ResultScreenState extends State<ResultScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (_currentBahasa == 'id') ...[
-                                const Icon(Icons.pause, size: 14, color: Colors.white),
+                                Icon(Icons.pause,
+                                    size: 14,
+                                    color: _isHighContrast ? Colors.black : Colors.white),
                                 const SizedBox(width: 4),
                               ],
                               Text(
@@ -123,8 +177,8 @@ class _ResultScreenState extends State<ResultScreen> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                   color: _currentBahasa == 'id'
-                                      ? Colors.white
-                                      : Colors.grey[700],
+                                      ? (_isHighContrast ? Colors.black : Colors.white)
+                                      : (_isHighContrast ? Colors.white70 : Colors.grey[700]),
                                 ),
                               ),
                             ],
@@ -135,15 +189,14 @@ class _ResultScreenState extends State<ResultScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           setState(() => _currentBahasa = 'min');
                           _speakContent();
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: _currentBahasa == 'min'
-                                ? const Color(0xFF1E56A0)
-                                : Colors.transparent,
+                            color: _currentBahasa == 'min' ? primaryCol : Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           alignment: Alignment.center,
@@ -153,8 +206,8 @@ class _ResultScreenState extends State<ResultScreen> {
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: _currentBahasa == 'min'
-                                  ? Colors.white
-                                  : Colors.grey[700],
+                                  ? (_isHighContrast ? Colors.black : Colors.white)
+                                  : (_isHighContrast ? Colors.white70 : Colors.grey[700]),
                             ),
                           ),
                         ),
@@ -165,35 +218,74 @@ class _ResultScreenState extends State<ResultScreen> {
               ),
               const SizedBox(height: 10),
 
-              // --- Ukuran Teks Adjuster ---
+              // --- Bar Aksesibilitas: Ukuran Teks & Tombol Kontras Tinggi (WCAG) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.text_fields, size: 18, color: Color(0xFF1E56A0)),
-                      const SizedBox(width: 6),
-                      Text(
-                        "Ukuran Teks: ${_fontScale < 1.0 ? 'Kecil' : _fontScale == 1.0 ? 'Sedang' : 'Besar'}",
-                        style: TextStyle(fontSize: 13 * _fontScale, color: Colors.grey[700]),
+                  InkWell(
+                    onTap: _toggleHighContrast,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _isHighContrast ? const Color(0xFFFFD700) : cardCol,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300]!,
+                        ),
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.contrast,
+                            size: 16,
+                            color: _isHighContrast ? Colors.black : const Color(0xFF1E56A0),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isHighContrast ? "Kontras: ON" : "Mode Kontras",
+                            style: TextStyle(
+                              fontSize: 12 * _fontScale,
+                              fontWeight: FontWeight.bold,
+                              color: _isHighContrast ? Colors.black : Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
+
                   Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(
+                        color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300]!,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        _buildSizeButton("A-", _fontScale == 0.9,
-                            () => setState(() => _fontScale = 0.9)),
-                        Container(width: 1, height: 24, color: Colors.grey[300]),
-                        _buildSizeButton("A", _fontScale == 1.0,
-                            () => setState(() => _fontScale = 1.0)),
-                        Container(width: 1, height: 24, color: Colors.grey[300]),
-                        _buildSizeButton("A+", _fontScale == 1.15,
-                            () => setState(() => _fontScale = 1.15)),
+                        _buildSizeButton("A-", _fontScale == 0.9, () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _fontScale = 0.9);
+                        }),
+                        Container(
+                          width: 1,
+                          height: 24,
+                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300],
+                        ),
+                        _buildSizeButton("A", _fontScale == 1.0, () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _fontScale = 1.0);
+                        }),
+                        Container(
+                          width: 1,
+                          height: 24,
+                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300],
+                        ),
+                        _buildSizeButton("A+", _fontScale == 1.15, () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _fontScale = 1.15);
+                        }),
                       ],
                     ),
                   ),
@@ -205,30 +297,30 @@ class _ResultScreenState extends State<ResultScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardCol,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFD0E1FD)),
+                  border: Border.all(color: borderCol),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8),
+                    if (!_isHighContrast)
+                      BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8),
                   ],
                 ),
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        // Tombol Play / Pause
                         GestureDetector(
                           onTap: _togglePlayPause,
                           child: Container(
                             width: 50,
                             height: 50,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF1E56A0),
+                            decoration: BoxDecoration(
+                              color: primaryCol,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               _isPlaying ? Icons.pause : Icons.play_arrow,
-                              color: Colors.white,
+                              color: _isHighContrast ? Colors.black : Colors.white,
                               size: 28,
                             ),
                           ),
@@ -240,7 +332,7 @@ class _ResultScreenState extends State<ResultScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.graphic_eq, color: Color(0xFF1E56A0), size: 20),
+                                  Icon(Icons.graphic_eq, color: primaryCol, size: 20),
                                   const SizedBox(width: 6),
                                   Text(
                                     isMinang
@@ -249,7 +341,7 @@ class _ResultScreenState extends State<ResultScreen> {
                                     style: TextStyle(
                                       fontSize: 13 * _fontScale,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                      color: textCol,
                                     ),
                                   ),
                                 ],
@@ -257,23 +349,40 @@ class _ResultScreenState extends State<ResultScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 "01:24 / 02:40",
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _isHighContrast ? Colors.white70 : Colors.grey[600],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEBF3FF),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            "1.0x",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E56A0),
+                        InkWell(
+                          onTap: _cycleSpeed,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _isHighContrast ? const Color(0xFF262626) : const Color(0xFFEBF3FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF93C5FD),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.speed, size: 14, color: primaryCol),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${_currentSpeed}x",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryCol,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -285,15 +394,16 @@ class _ResultScreenState extends State<ResultScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF9C3),
+                        color: _isHighContrast ? const Color(0xFF262626) : const Color(0xFFFEF9C3),
                         borderRadius: BorderRadius.circular(10),
+                        border: _isHighContrast ? Border.all(color: const Color(0xFFFFD700)) : null,
                       ),
                       child: Text(
                         '"${widget.result.tenggatSub}"',
                         style: TextStyle(
                           fontSize: 13 * _fontScale,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF713F12),
+                          color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF713F12),
                         ),
                       ),
                     ),
@@ -306,31 +416,30 @@ class _ResultScreenState extends State<ResultScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardCol,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(color: borderCol),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Green Verified Badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD1FAE5),
+                        color: _isHighContrast ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_circle, size: 14, color: Color(0xFF059669)),
+                          const Icon(Icons.check_circle, size: 14, color: Color(0xFF34D399)),
                           const SizedBox(width: 6),
                           Text(
                             widget.result.jenisDokumen,
                             style: TextStyle(
                               fontSize: 11 * _fontScale,
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF065F46),
+                              color: _isHighContrast ? Colors.white : const Color(0xFF065F46),
                             ),
                           ),
                         ],
@@ -342,7 +451,7 @@ class _ResultScreenState extends State<ResultScreen> {
                       style: TextStyle(
                         fontSize: 18 * _fontScale,
                         fontWeight: FontWeight.w900,
-                        color: const Color(0xFF1E56A0),
+                        color: primaryCol,
                         height: 1.3,
                       ),
                     ),
@@ -351,7 +460,10 @@ class _ResultScreenState extends State<ResultScreen> {
                       children: [
                         Text(
                           "Diterima: 14 Mei 2024",
-                          style: TextStyle(fontSize: 12 * _fontScale, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12 * _fontScale,
+                            color: _isHighContrast ? Colors.white70 : Colors.grey[600],
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Text(
@@ -359,7 +471,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           style: TextStyle(
                             fontSize: 12 * _fontScale,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
+                            color: textCol,
                           ),
                         ),
                       ],
@@ -373,23 +485,25 @@ class _ResultScreenState extends State<ResultScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
+                  color: _isHighContrast ? const Color(0xFF161616) : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                  border: Border.all(
+                    color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFBFDBFE),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.lightbulb, color: Color(0xFF1E56A0), size: 22),
+                        Icon(Icons.lightbulb, color: primaryCol, size: 22),
                         const SizedBox(width: 8),
                         Text(
                           isMinang ? "Inti Surek Ko:" : "Inti Surat Ini:",
                           style: TextStyle(
                             fontSize: 16 * _fontScale,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E56A0),
+                            color: primaryCol,
                           ),
                         ),
                       ],
@@ -399,7 +513,7 @@ class _ResultScreenState extends State<ResultScreen> {
                       widget.result.penjelasan,
                       style: TextStyle(
                         fontSize: 14.5 * _fontScale,
-                        color: Colors.black87,
+                        color: textCol,
                         height: 1.5,
                       ),
                     ),
@@ -414,19 +528,19 @@ class _ResultScreenState extends State<ResultScreen> {
                 style: TextStyle(
                   fontSize: 14 * _fontScale,
                   fontWeight: FontWeight.w900,
-                  color: const Color(0xFF1E56A0),
+                  color: primaryCol,
                   letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 12),
 
-              // Kartu 1: Tenggat Waktu
+              // Kartu 1: Tenggat Waktu + TOMBOL PENGINGAT (Anti-Denda)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardCol,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(color: borderCol),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,19 +551,21 @@ class _ResultScreenState extends State<ResultScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFEF3C7),
+                            color: _isHighContrast ? const Color(0xFF332A00) : const Color(0xFFFEF3C7),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.alarm, size: 14, color: Color(0xFFB45309)),
+                              Icon(Icons.alarm,
+                                  size: 14,
+                                  color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFB45309)),
                               const SizedBox(width: 6),
                               Text(
                                 "TENGGAT WAKTU",
                                 style: TextStyle(
                                   fontSize: 11 * _fontScale,
                                   fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFB45309),
+                                  color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFB45309),
                                 ),
                               ),
                             ],
@@ -460,7 +576,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           style: TextStyle(
                             fontSize: 12 * _fontScale,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFFD97706),
+                            color: const Color(0xFFF59E0B),
                           ),
                         ),
                       ],
@@ -471,13 +587,16 @@ class _ResultScreenState extends State<ResultScreen> {
                       style: TextStyle(
                         fontSize: 24 * _fontScale,
                         fontWeight: FontWeight.w900,
-                        color: Colors.black87,
+                        color: textCol,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.result.tenggatSub,
-                      style: TextStyle(fontSize: 13 * _fontScale, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 13 * _fontScale,
+                        color: _isHighContrast ? Colors.white70 : Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
@@ -488,9 +607,9 @@ class _ResultScreenState extends State<ResultScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardCol,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(color: borderCol),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,20 +617,22 @@ class _ResultScreenState extends State<ResultScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDBEAFE),
+                        color: _isHighContrast ? const Color(0xFF1E293B) : const Color(0xFFDBEAFE),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.payments, size: 14, color: Color(0xFF1E40AF)),
+                          Icon(Icons.payments,
+                              size: 14,
+                              color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E40AF)),
                           const SizedBox(width: 6),
                           Text(
                             "JUMLAH YANG HARUS DIBAYAR",
                             style: TextStyle(
                               fontSize: 11 * _fontScale,
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1E40AF),
+                              color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E40AF),
                             ),
                           ),
                         ],
@@ -523,24 +644,30 @@ class _ResultScreenState extends State<ResultScreen> {
                       style: TextStyle(
                         fontSize: 26 * _fontScale,
                         fontWeight: FontWeight.w900,
-                        color: const Color(0xFF1E56A0),
+                        color: primaryCol,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.result.nominalSub,
-                      style: TextStyle(fontSize: 13 * _fontScale, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 13 * _fontScale,
+                        color: _isHighContrast ? Colors.white70 : Colors.grey[600],
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: _isHighContrast ? const Color(0xFF1E1E1E) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         "Rincian: ${widget.result.rincian}",
-                        style: TextStyle(fontSize: 12 * _fontScale, color: Colors.grey[700]),
+                        style: TextStyle(
+                          fontSize: 12 * _fontScale,
+                          color: _isHighContrast ? Colors.white70 : Colors.grey[700],
+                        ),
                       ),
                     ),
                   ],
@@ -552,9 +679,9 @@ class _ResultScreenState extends State<ResultScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardCol,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(color: borderCol),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,20 +689,20 @@ class _ResultScreenState extends State<ResultScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD1FAE5),
+                        color: _isHighContrast ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_box, size: 14, color: Color(0xFF065F46)),
+                          const Icon(Icons.check_box, size: 14, color: Color(0xFF34D399)),
                           const SizedBox(width: 6),
                           Text(
                             "CARA & TINDAKAN",
                             style: TextStyle(
                               fontSize: 11 * _fontScale,
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF065F46),
+                              color: _isHighContrast ? Colors.white : const Color(0xFF065F46),
                             ),
                           ),
                         ],
@@ -589,15 +716,15 @@ class _ResultScreenState extends State<ResultScreen> {
                           Container(
                             width: 24,
                             height: 24,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF059669),
+                            decoration: BoxDecoration(
+                              color: primaryCol,
                               shape: BoxShape.circle,
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               "${i + 1}",
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _isHighContrast ? Colors.black : Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
@@ -609,7 +736,7 @@ class _ResultScreenState extends State<ResultScreen> {
                               widget.result.langkahTindakan[i],
                               style: TextStyle(
                                 fontSize: 13.5 * _fontScale,
-                                color: Colors.black87,
+                                color: textCol,
                                 height: 1.4,
                               ),
                             ),
@@ -624,28 +751,31 @@ class _ResultScreenState extends State<ResultScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Catatan Penting Card (Kuning)
+              // Catatan Penting Card
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF9C3),
+                  color: _isHighContrast ? const Color(0xFF262626) : const Color(0xFFFEF9C3),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFFDE047)),
+                  border: Border.all(
+                    color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFFDE047),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded,
-                            color: Color(0xFFB45309), size: 22),
+                        Icon(Icons.warning_amber_rounded,
+                            color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFB45309),
+                            size: 22),
                         const SizedBox(width: 8),
                         Text(
                           isMinang ? "Catatan Pantiang:" : "Catatan Penting:",
                           style: TextStyle(
                             fontSize: 14 * _fontScale,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFFB45309),
+                            color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFB45309),
                           ),
                         ),
                       ],
@@ -657,7 +787,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           : "BACO membantu merangkum surat resmi. Untuk kepastian lebih lanjut, silakan konfirmasi ke kantor BPJS Kesehatan terdekat.",
                       style: TextStyle(
                         fontSize: 12.5 * _fontScale,
-                        color: Colors.yellow[900],
+                        color: _isHighContrast ? Colors.white70 : Colors.yellow[900],
                         height: 1.4,
                       ),
                     ),
@@ -672,6 +802,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 height: 56,
                 child: ElevatedButton.icon(
                   onPressed: () {
+                    HapticFeedback.mediumImpact();
                     _ttsService.stop();
                     Navigator.push(
                       context,
@@ -683,26 +814,27 @@ class _ResultScreenState extends State<ResultScreen> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.chat_bubble_outline, size: 22),
+                  icon: Icon(Icons.chat_bubble_outline,
+                      size: 22, color: _isHighContrast ? Colors.black : Colors.white),
                   label: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        isMinang
-                            ? "Masih Raguk? Batanyo ka BACO"
-                            : "Masih Bingung? Tanya BACO Sekarang",
+                        isMinang ? "Masih Raguk? Batanyo ka BACO" : "Masih Bingung? Tanya BACO Sekarang",
                         style: TextStyle(
                           fontSize: 16 * _fontScale,
                           fontWeight: FontWeight.bold,
+                          color: _isHighContrast ? Colors.black : Colors.white,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward, size: 18),
+                      Icon(Icons.arrow_forward,
+                          size: 18, color: _isHighContrast ? Colors.black : Colors.white),
                     ],
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E56A0),
-                    foregroundColor: Colors.white,
+                    backgroundColor: primaryCol,
+                    foregroundColor: _isHighContrast ? Colors.black : Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -722,13 +854,17 @@ class _ResultScreenState extends State<ResultScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: active ? const Color(0xFF1E56A0) : Colors.transparent,
+        color: active
+            ? (_isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0))
+            : Colors.transparent,
         child: Text(
           text,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: active ? Colors.white : Colors.grey[800],
+            color: active
+                ? (_isHighContrast ? Colors.black : Colors.white)
+                : (_isHighContrast ? Colors.white : Colors.grey[800]),
           ),
         ),
       ),

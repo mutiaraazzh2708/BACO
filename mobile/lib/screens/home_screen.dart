@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/tts_service.dart';
@@ -21,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedBahasa = 'id'; // 'id' atau 'min'
   double _fontScale = 1.0; // 0.9 = Kecil, 1.0 = Normal, 1.15 = Besar
   int _currentNavIndex = 0; // Selalu 0 (Beranda) saat berada di layar utama
+  bool _isHighContrast = false; // Mode Kontras Tinggi Standar WCAG
 
   @override
   void initState() {
@@ -28,7 +30,22 @@ class _HomeScreenState extends State<HomeScreen> {
     _ttsService.init();
   }
 
+  void _toggleHighContrast() {
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _isHighContrast = !_isHighContrast;
+    });
+
+    if (_isHighContrast) {
+      final msg = _selectedBahasa == 'min'
+          ? "Mode kontras tinggi aktif untuak tunanetra jo lansia."
+          : "Mode kontras tinggi aktif untuk lansia dan tunanetra.";
+      _ttsService.speak(msg);
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
+    HapticFeedback.mediumImpact();
     try {
       final XFile? picked = await _picker.pickImage(
         source: source,
@@ -56,7 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } finally {
-      // Pastikan navbar tetap di posisi 0 (Beranda) saat kembali
       if (mounted) {
         setState(() {
           _currentNavIndex = 0;
@@ -66,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _playIntroVoice() {
+    HapticFeedback.selectionClick();
     if (_selectedBahasa == 'min') {
       _ttsService.speak(
         "Salamaik datang di BACO! Asisten Suara untuak Mambaco Dokumen Layanan Publik. "
@@ -80,7 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Pengaturan IP Server rahasia (bisa dibuka dengan menekan lama logo/nama BACO)
   void _showSettingsDialog() {
     final controller = TextEditingController(text: _apiService.baseUrl);
 
@@ -134,8 +150,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final isMinang = _selectedBahasa == 'min';
 
+    // Warna Dinamis Berdasarkan Mode Kontras Tinggi
+    final bgCol = _isHighContrast ? Colors.black : const Color(0xFFF8FAFC);
+    final cardCol = _isHighContrast ? const Color(0xFF141414) : Colors.white;
+    final primaryCol = _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0);
+    final textCol = _isHighContrast ? Colors.white : Colors.black87;
+    final borderCol = _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[200]!;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: bgCol,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
@@ -147,29 +170,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
-                    // Tekan lama pada tulisan BACO untuk membuka pengaturan IP (rahasia)
                     onLongPress: _showSettingsDialog,
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1E56A0),
+                            color: primaryCol,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.hearing,
-                            color: Colors.white,
+                            color: _isHighContrast ? Colors.black : Colors.white,
                             size: 24,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
+                        Text(
                           "BACO",
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF1E56A0),
+                            color: primaryCol,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -179,29 +201,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Toggle Bahasa Pill
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE2E8F0),
+                      color: _isHighContrast ? const Color(0xFF222222) : const Color(0xFFE2E8F0),
                       borderRadius: BorderRadius.circular(24),
+                      border: _isHighContrast ? Border.all(color: const Color(0xFFFFD700)) : null,
                     ),
                     padding: const EdgeInsets.all(3),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         GestureDetector(
-                          onTap: () => setState(() => _selectedBahasa = 'id'),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selectedBahasa = 'id');
+                          },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: _selectedBahasa == 'id'
-                                  ? const Color(0xFF1E56A0)
-                                  : Colors.transparent,
+                              color: _selectedBahasa == 'id' ? primaryCol : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               children: [
                                 if (_selectedBahasa == 'id') ...[
-                                  const Icon(Icons.pause,
-                                      size: 14, color: Colors.white),
+                                  Icon(Icons.pause,
+                                      size: 14,
+                                      color: _isHighContrast ? Colors.black : Colors.white),
                                   const SizedBox(width: 4),
                                 ],
                                 Text(
@@ -210,8 +234,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                     color: _selectedBahasa == 'id'
-                                        ? Colors.white
-                                        : Colors.grey[700],
+                                        ? (_isHighContrast ? Colors.black : Colors.white)
+                                        : (_isHighContrast ? Colors.white70 : Colors.grey[700]),
                                   ),
                                 ),
                               ],
@@ -219,14 +243,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => setState(() => _selectedBahasa = 'min'),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selectedBahasa = 'min');
+                          },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: _selectedBahasa == 'min'
-                                  ? const Color(0xFF1E56A0)
-                                  : Colors.transparent,
+                              color: _selectedBahasa == 'min' ? primaryCol : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -235,8 +259,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: _selectedBahasa == 'min'
-                                    ? Colors.white
-                                    : Colors.grey[700],
+                                    ? (_isHighContrast ? Colors.black : Colors.white)
+                                    : (_isHighContrast ? Colors.white70 : Colors.grey[700]),
                               ),
                             ),
                           ),
@@ -248,28 +272,30 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // --- Mode Aksesibilitas Suara Aktif Banner (Sesuai Persis Desain Figma) ---
+              // --- Mode Aksesibilitas Suara Aktif Banner ---
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEEF5FF),
+                  color: _isHighContrast ? const Color(0xFF1E1E1E) : const Color(0xFFEEF5FF),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFD0E1FD)),
+                  border: Border.all(
+                    color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFD0E1FD),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.volume_up,
-                        size: 20, color: Color(0xFF1E56A0)),
+                    Icon(Icons.volume_up,
+                        size: 20, color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         isMinang
                             ? "Mode Aksesibilitas Suara Aktif"
                             : "Mode Aksesibilitas Suara Aktif",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E56A0),
+                          color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0),
                         ),
                       ),
                     ),
@@ -284,41 +310,78 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
 
-              // --- Ukuran Teks Adjuster ---
+              // --- Bar Aksesibilitas: Ukuran Teks & Tombol Kontras Tinggi (WCAG) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.text_fields,
-                          size: 18, color: Color(0xFF1E56A0)),
-                      const SizedBox(width: 6),
-                      Text(
-                        "Ukuran: ${_fontScale < 1.0 ? 'Kecil' : _fontScale == 1.0 ? 'Normal' : 'Besar'}",
-                        style: TextStyle(
-                          fontSize: 13 * _fontScale,
-                          color: Colors.grey[700],
+                  // Toggle Mode Kontras Tinggi
+                  InkWell(
+                    onTap: _toggleHighContrast,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _isHighContrast ? const Color(0xFFFFD700) : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300]!,
                         ),
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.contrast,
+                            size: 16,
+                            color: _isHighContrast ? Colors.black : const Color(0xFF1E56A0),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isHighContrast ? "Kontras: ON" : "Mode Kontras",
+                            style: TextStyle(
+                              fontSize: 12 * _fontScale,
+                              fontWeight: FontWeight.bold,
+                              color: _isHighContrast ? Colors.black : Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
+
+                  // Pengatur Ukuran Font
                   Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(
+                        color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300]!,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        _buildSizeButton("A-", _fontScale == 0.9,
-                            () => setState(() => _fontScale = 0.9)),
-                        Container(width: 1, height: 24, color: Colors.grey[300]),
-                        _buildSizeButton("A", _fontScale == 1.0,
-                            () => setState(() => _fontScale = 1.0)),
-                        Container(width: 1, height: 24, color: Colors.grey[300]),
-                        _buildSizeButton("A+", _fontScale == 1.15,
-                            () => setState(() => _fontScale = 1.15)),
+                        _buildSizeButton("A-", _fontScale == 0.9, () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _fontScale = 0.9);
+                        }),
+                        Container(
+                          width: 1,
+                          height: 24,
+                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300],
+                        ),
+                        _buildSizeButton("A", _fontScale == 1.0, () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _fontScale = 1.0);
+                        }),
+                        Container(
+                          width: 1,
+                          height: 24,
+                          color: _isHighContrast ? const Color(0xFFFFD700) : Colors.grey[300],
+                        ),
+                        _buildSizeButton("A+", _fontScale == 1.15, () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _fontScale = 1.15);
+                        }),
                       ],
                     ),
                   ),
@@ -330,20 +393,22 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0EDFD),
+                  color: _isHighContrast ? const Color(0xFF222222) : const Color(0xFFE0EDFD),
                   borderRadius: BorderRadius.circular(20),
+                  border: _isHighContrast ? Border.all(color: const Color(0xFFFFD700)) : null,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.verified, size: 16, color: Color(0xFF1E56A0)),
+                    Icon(Icons.verified,
+                        size: 16, color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0)),
                     const SizedBox(width: 6),
                     Text(
                       "Layanan Suara Terbuka & Gratis",
                       style: TextStyle(
                         fontSize: 12 * _fontScale,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1E56A0),
+                        color: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0),
                       ),
                     ),
                   ],
@@ -357,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 26 * _fontScale,
                   fontWeight: FontWeight.w900,
-                  color: Colors.black87,
+                  color: textCol,
                 ),
               ),
               const SizedBox(height: 4),
@@ -368,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 19 * _fontScale,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E56A0),
+                  color: primaryCol,
                 ),
               ),
               const SizedBox(height: 10),
@@ -378,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     : "Arahkan kamera ke surat atau dokumen resmi Anda, BACO akan membacakan dan menjelaskannya langsung lewat suara jernih.",
                 style: TextStyle(
                   fontSize: 15 * _fontScale,
-                  color: Colors.grey[700],
+                  color: _isHighContrast ? Colors.white70 : Colors.grey[700],
                   height: 1.5,
                 ),
               ),
@@ -388,15 +453,16 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardCol,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(color: borderCol),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
+                    if (!_isHighContrast)
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
                   ],
                 ),
                 child: Column(
@@ -406,11 +472,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEBF3FF),
+                            color: _isHighContrast ? const Color(0xFF262626) : const Color(0xFFEBF3FF),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.record_voice_over,
-                              color: Color(0xFF1E56A0), size: 28),
+                          child: Icon(Icons.record_voice_over, color: primaryCol, size: 28),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -422,24 +487,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(
                                   fontSize: 16 * _fontScale,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: textCol,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                isMinang
-                                    ? "Danga patunjuak 20 datiak"
-                                    : "Dengarkan petunjuk 20 detik",
+                                isMinang ? "Danga patunjuak 20 datiak" : "Dengarkan petunjuk 20 detik",
                                 style: TextStyle(
                                   fontSize: 13 * _fontScale,
-                                  color: Colors.grey[600],
+                                  color: _isHighContrast ? Colors.white70 : Colors.grey[600],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.graphic_eq,
-                            color: Color(0xFF1E56A0), size: 30),
+                        Icon(Icons.graphic_eq, color: primaryCol, size: 30),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -450,17 +512,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: _playIntroVoice,
                         icon: const Icon(Icons.play_arrow, size: 22),
                         label: Text(
-                          isMinang
-                              ? "Danga Panduan Suara 🔊"
-                              : "Dengarkan Panduan Suara 🔊",
+                          isMinang ? "Danga Panduan Suara 🔊" : "Dengarkan Panduan Suara 🔊",
                           style: TextStyle(
                             fontSize: 14 * _fontScale,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEBF3FF),
-                          foregroundColor: const Color(0xFF1E56A0),
+                          backgroundColor: _isHighContrast ? const Color(0xFFFFD700) : const Color(0xFFEBF3FF),
+                          foregroundColor: _isHighContrast ? Colors.black : const Color(0xFF1E56A0),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -473,18 +533,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 18),
 
-              // --- Tombol Utama: Foto Dokumen ---
+              // --- Tombol Utama: Foto Dokumen (Besar & Haptic Feedback) ---
               InkWell(
                 onTap: () => _pickImage(ImageSource.camera),
                 borderRadius: BorderRadius.circular(18),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E56A0),
+                    color: primaryCol,
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF1E56A0).withOpacity(0.35),
+                        color: primaryCol.withOpacity(0.35),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -495,12 +555,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.18),
+                          color: _isHighContrast ? Colors.black.withOpacity(0.15) : Colors.white.withOpacity(0.18),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.camera_alt,
-                          color: Colors.white,
+                          color: _isHighContrast ? Colors.black : Colors.white,
                           size: 30,
                         ),
                       ),
@@ -509,17 +569,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  "📸 Foto Dokumen",
-                                  style: TextStyle(
-                                    fontSize: 19 * _fontScale,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              "📸 Foto Dokumen",
+                              style: TextStyle(
+                                fontSize: 19 * _fontScale,
+                                fontWeight: FontWeight.bold,
+                                color: _isHighContrast ? Colors.black : Colors.white,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -528,14 +584,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   : "Sentuh untuk memindai surat fisik",
                               style: TextStyle(
                                 fontSize: 13 * _fontScale,
-                                color: Colors.white70,
+                                color: _isHighContrast ? Colors.black87 : Colors.white70,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios,
-                          color: Colors.white, size: 20),
+                      Icon(Icons.arrow_forward_ios,
+                          color: _isHighContrast ? Colors.black : Colors.white, size: 20),
                     ],
                   ),
                 ),
@@ -545,20 +601,19 @@ class _HomeScreenState extends State<HomeScreen> {
               // --- Tombol Sekunder: Pilih dari Galeri HP ---
               OutlinedButton.icon(
                 onPressed: () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library_outlined,
-                    color: Color(0xFF1E56A0), size: 22),
+                icon: Icon(Icons.photo_library_outlined, color: primaryCol, size: 22),
                 label: Text(
                   isMinang ? "🖼️ Piliah dari Galeri HP" : "🖼️ Pilih dari Galeri HP",
                   style: TextStyle(
                     fontSize: 16 * _fontScale,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1E56A0),
+                    color: primaryCol,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(56),
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: Color(0xFF1E56A0), width: 1.5),
+                  backgroundColor: cardCol,
+                  side: BorderSide(color: primaryCol, width: 2),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -571,13 +626,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isMinang
-                        ? "Jinih Surek Nan Bisa Dibantu:"
-                        : "Jenis Surat Yang Bisa Dibantu:",
+                    isMinang ? "Jinih Surek Nan Bisa Dibantu:" : "Jenis Surat Yang Bisa Dibantu:",
                     style: TextStyle(
                       fontSize: 16 * _fontScale,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: textCol,
                     ),
                   ),
                   Text(
@@ -585,7 +638,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                       fontSize: 12 * _fontScale,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E56A0),
+                      color: primaryCol,
                     ),
                   ),
                 ],
@@ -594,26 +647,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
               _buildSuratCard(
                 icon: Icons.shield,
-                iconColor: const Color(0xFF1E56A0),
-                bgColor: const Color(0xFFEEF5FF),
+                iconColor: primaryCol,
+                bgColor: _isHighContrast ? const Color(0xFF222222) : const Color(0xFFEEF5FF),
                 title: "📄 Surat BPJS & Kesehatan",
                 desc: "Rujukan puskesmas, obat, status aktif iuran",
+                cardCol: cardCol,
+                borderCol: borderCol,
+                textCol: textCol,
               ),
               const SizedBox(height: 10),
               _buildSuratCard(
                 icon: Icons.bolt,
                 iconColor: Colors.amber[800]!,
-                bgColor: const Color(0xFFFFF7ED),
+                bgColor: _isHighContrast ? const Color(0xFF222222) : const Color(0xFFFFF7ED),
                 title: "⚡ Tagihan Listrik & Air (PDAM)",
                 desc: "Nominal jatuh tempo dibaca jelas tanpa keliru",
+                cardCol: cardCol,
+                borderCol: borderCol,
+                textCol: textCol,
               ),
               const SizedBox(height: 10),
               _buildSuratCard(
                 icon: Icons.account_balance,
                 iconColor: Colors.green[700]!,
-                bgColor: const Color(0xFFF0FDF4),
+                bgColor: _isHighContrast ? const Color(0xFF222222) : const Color(0xFFF0FDF4),
                 title: "🏛️ Surat Kelurahan & RT/RW",
                 desc: "Undangan bansos, pengantar KTP, himbauan warga",
+                cardCol: cardCol,
+                borderCol: borderCol,
+                textCol: textCol,
               ),
               const SizedBox(height: 18),
 
@@ -621,13 +683,13 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEEF5FF),
+                  color: _isHighContrast ? const Color(0xFF1E1E1E) : const Color(0xFFEEF5FF),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderCol),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.accessibility_new,
-                        color: Color(0xFF1E56A0), size: 24),
+                    Icon(Icons.accessibility_new, color: primaryCol, size: 24),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -636,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             : "Dirancang khusus ramah lansia & tunanetra dengan navigasi sederhana dan audio otomatis.",
                         style: TextStyle(
                           fontSize: 13 * _fontScale,
-                          color: const Color(0xFF1E56A0),
+                          color: _isHighContrast ? Colors.white : const Color(0xFF1E56A0),
                           fontWeight: FontWeight.w600,
                           height: 1.4,
                         ),
@@ -652,16 +714,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentNavIndex,
-        selectedItemColor: const Color(0xFF1E56A0),
-        unselectedItemColor: Colors.grey[500],
+        backgroundColor: cardCol,
+        selectedItemColor: primaryCol,
+        unselectedItemColor: _isHighContrast ? Colors.white54 : Colors.grey[500],
         onTap: (index) async {
+          HapticFeedback.selectionClick();
           if (index == 0) {
             setState(() => _currentNavIndex = 0);
           } else if (index == 1) {
-            // Pindai (Buka Kamera)
             _pickImage(ImageSource.camera);
           } else if (index == 2) {
-            // Tanya BACO
             await Navigator.push(
               context,
               MaterialPageRoute(
@@ -671,7 +733,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             );
-            // Setelah kembali dari Tanya BACO, pastikan navbar tetap Beranda
             if (mounted) {
               setState(() => _currentNavIndex = 0);
             }
@@ -700,13 +761,17 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: active ? const Color(0xFF1E56A0) : Colors.transparent,
+        color: active
+            ? (_isHighContrast ? const Color(0xFFFFD700) : const Color(0xFF1E56A0))
+            : Colors.transparent,
         child: Text(
           text,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: active ? Colors.white : Colors.grey[800],
+            color: active
+                ? (_isHighContrast ? Colors.black : Colors.white)
+                : (_isHighContrast ? Colors.white : Colors.grey[800]),
           ),
         ),
       ),
@@ -719,13 +784,16 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color bgColor,
     required String title,
     required String desc,
+    required Color cardCol,
+    required Color borderCol,
+    required Color textCol,
   }) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardCol,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: borderCol),
       ),
       child: Row(
         children: [
@@ -747,7 +815,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 15 * _fontScale,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: textCol,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -755,7 +823,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   desc,
                   style: TextStyle(
                     fontSize: 12.5 * _fontScale,
-                    color: Colors.grey[600],
+                    color: _isHighContrast ? Colors.white70 : Colors.grey[600],
                   ),
                 ),
               ],
