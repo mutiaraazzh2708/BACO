@@ -266,7 +266,30 @@
 
 # 
 
-# \## Tim
+## Cara menjalankan
+
+1. Clone repo dan masuk ke foldernya:
+   git clone https://github.com/mutiaraazzh2708/BACO.git
+   cd BACO
+
+2. Buat dan aktifkan virtual environment (Python 3.12):
+   py -3.12 -m venv venv
+   venv\Scripts\activate
+
+3. Install library:
+   pip install fastapi uvicorn python-multipart python-dotenv google-genai pillow
+
+4. Salin .env.example menjadi .env, lalu isi API key Gemini sendiri:
+   copy .env.example .env
+
+5. Jalankan backend:
+   cd backend
+   uvicorn main:app --host 0.0.0.0 --port 8000
+
+6. Buka dokumentasi API di http://localhost:8000/docs
+
+# 
+\## Tim
 
 # 
 
