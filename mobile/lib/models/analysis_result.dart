@@ -10,6 +10,7 @@ class AnalysisResult {
   final String rincian;
   final String tindakan;
   final List<String> langkahTindakan;
+  final List<String> saranPertanyaan;
 
   AnalysisResult({
     this.judul = "Dokumen Fisik",
@@ -23,6 +24,7 @@ class AnalysisResult {
     this.rincian = "Rincian Dokumen",
     required this.tindakan,
     this.langkahTindakan = const [],
+    this.saranPertanyaan = const [],
   });
 
   factory AnalysisResult.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,7 @@ class AnalysisResult {
     final jenisParsed = json['jenis_dokumen']?.toString();
     final tenggatText = json['tenggat']?.toString() ?? 'Tidak ada';
     final nominalText = json['nominal']?.toString() ?? 'Tidak ada';
+    final penjelasanText = json['penjelasan']?.toString() ?? '-';
 
     // Subtitle tenggat yang dinamis
     String dynamicTenggatSub = json['tenggat_sub']?.toString() ?? '';
@@ -74,6 +77,55 @@ class AnalysisResult {
       }
     }
 
+    // Saran pertanyaan dinamis dari AI atau fallback cerdas sesuai konteks berkas
+    List<String> saran = [];
+    if (json['saran_pertanyaan'] is List) {
+      saran = List<String>.from(
+        (json['saran_pertanyaan'] as List)
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty),
+      );
+    }
+
+    if (saran.isEmpty) {
+      final p = "$judulParsed $jenisParsed $penjelasanText".toLowerCase();
+      final nom = nominalText.toLowerCase();
+      final hasMoney = nom != 'tidak ada' && nom != '-' && !nom.contains('gratis');
+
+      if (hasMoney) {
+        saran = [
+          "Bisa bayar di mana saja?",
+          "Kapan batas akhir pembayaran?",
+          "Apa rincian biayanya?"
+        ];
+      } else if (p.contains("lomba") ||
+          p.contains("hackathon") ||
+          p.contains("peserta") ||
+          p.contains("acara") ||
+          p.contains("kegiatan")) {
+        saran = [
+          "Siapa penyelenggara acara ini?",
+          "Kapan jadwal pelaksanaannya?",
+          "Apa yang harus disiapkan peserta?"
+        ];
+      } else if (p.contains("ktp") ||
+          p.contains("kartu keluarga") ||
+          p.contains("kk") ||
+          p.contains("identitas")) {
+        saran = [
+          "Apa fungsi dari dokumen identitas ini?",
+          "Berapa lama masa berlakunya?",
+          "Di mana tempat pengurusannya?"
+        ];
+      } else {
+        saran = [
+          "Apa maksud dan tujuan dokumen ini?",
+          "Siapa pihak atau instansi terkait?",
+          "Apa tindakan yang harus saya lakukan?"
+        ];
+      }
+    }
+
     return AnalysisResult(
       judul: (judulParsed != null && judulParsed.isNotEmpty && judulParsed != "Tidak ada")
           ? judulParsed
@@ -82,7 +134,7 @@ class AnalysisResult {
           ? "Dokumen: $jenisParsed"
           : "Dokumen Terverifikasi",
       nomorPeserta: json['nomor_peserta']?.toString() ?? "",
-      penjelasan: json['penjelasan']?.toString() ?? '-',
+      penjelasan: penjelasanText,
       tenggat: tenggatText,
       tenggatSub: dynamicTenggatSub,
       nominal: nominalText,
@@ -90,6 +142,7 @@ class AnalysisResult {
       rincian: json['rincian']?.toString() ?? "Rincian Dokumen",
       tindakan: tindakanText,
       langkahTindakan: langkah,
+      saranPertanyaan: saran,
     );
   }
 

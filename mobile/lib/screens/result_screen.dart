@@ -966,6 +966,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           bahasa: _currentBahasa,
                           contextDocument: widget.result.toSpeechText(bahasa: _currentBahasa),
                           documentTitle: docTitle,
+                          saranPertanyaan: widget.result.saranPertanyaan,
                         ),
                       ),
                     );

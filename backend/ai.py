@@ -23,7 +23,7 @@ BAHASA = {
     "id": "bahasa Indonesia sederhana",
     "min": "bahasa Minangkabau yang sederhana",
 }
-KUNCI = ["judul", "jenis_dokumen", "penjelasan", "tenggat", "tenggat_sub", "nominal", "tindakan"]
+KUNCI = ["judul", "jenis_dokumen", "penjelasan", "tenggat", "tenggat_sub", "nominal", "tindakan", "saran_pertanyaan"]
 
 PROMPT = """Kamu adalah BACO, asisten pintar yang membantu tunanetra dan lansia memahami dokumen fisik resmi, berkas identitas, maupun dokumen umum lainnya.
 Baca dokumen pada gambar dengan teliti, kenali APA SEBENARNYA dokumen tersebut (misal: Kartu Peserta Hackathon/Lomba, Surat Tagihan Listrik PLN, Surat BPJS Kesehatan, KTP, KK, Kartu Pelajar, Sertifikat, Tiket, dsb), lalu jawab HANYA dalam JSON dengan format:
@@ -34,10 +34,15 @@ Baca dokumen pada gambar dengan teliti, kenali APA SEBENARNYA dokumen tersebut (
   "tenggat": "semua tanggal penting (jadwal acara, tanggal terbit, atau batas akhir), atau 'Tidak ada' jika tidak tertulis",
   "tenggat_sub": "keterangan singkat 1 kalimat tentang tanggal atau status batas waktu tersebut",
   "nominal": "jumlah uang yang harus dibayar; jika acara/layanan gratis tulis 'Gratis'; jika tidak ada informasi uang tulis 'Tidak ada'",
-  "tindakan": "apa yang harus dilakukan pemilik dokumen, singkat dan jelas"
+  "tindakan": "apa yang harus dilakukan pemilik dokumen, singkat dan jelas",
+  "saran_pertanyaan": [
+    "pertanyaan 1 yang sangat relevan dan logis ditanyakan tentang dokumen ini (singkat)",
+    "pertanyaan 2 yang sangat relevan dan logis ditanyakan tentang dokumen ini (singkat)",
+    "pertanyaan 3 yang sangat relevan dan logis ditanyakan tentang dokumen ini (singkat)"
+  ]
 }
 Tulis semua isi JSON dalam bahasa Indonesia sederhana.
-PENTING: Jangan memaksakan menyebut BPJS atau surat desa/kelurahan jika gambar adalah dokumen jenis lain! Tuliskan judul dan jenis dokumen persis sesuai fakta fisik yang terbaca di foto.
+PENTING: Jangan memaksakan menyebut BPJS atau surat desa/kelurahan jika gambar adalah dokumen jenis lain! Saran pertanyaan WAJIB disesuaikan persis dengan tema dokumen (misal dokumen lomba tanyakan tentang jadwal/syarat lomba/penyelenggara, bukan tempat bayar!).
 Jangan mengarang. Jika informasi tidak ada di dokumen, tulis 'Tidak ada'.
 Jika ada beberapa angka yang harus dijumlahkan, jumlahkan dengan teliti dan tulis totalnya.
 Bedakan tanggal batas bayar dengan tanggal sanksi atau pemutusan, dan sebutkan keduanya jika ada.
@@ -62,6 +67,7 @@ PESAN_GAGAL = {
     "tenggat_sub": "Tidak ada batas waktu penting",
     "nominal": "Tidak ada",
     "tindakan": "Foto ulang dokumen atau coba lagi sebentar lagi.",
+    "saran_pertanyaan": ["Bagaimana cara foto ulang?", "Apa dokumen yang bisa dibantu?"],
     "gagal": True,
 }
 PESAN_SIBUK = {
@@ -72,6 +78,7 @@ PESAN_SIBUK = {
     "tenggat_sub": "Tidak ada batas waktu penting",
     "nominal": "Tidak ada",
     "tindakan": "Tekan tombol baca dokumen sekali lagi dalam beberapa saat.",
+    "saran_pertanyaan": ["Kapan bisa coba lagi?"],
     "gagal": True,
 }
 
@@ -143,12 +150,16 @@ Jawab HANYA JSON.
     data = _parse_json(response.text)
     terjemahan = {}
     for k in KUNCI:
-        nilai = str(data.get(k, hasil[k]))
-        # Jika angka berubah, pakai teks asli (Indonesia) agar tidak salah informasi
-        if _angka(nilai) != _angka(hasil[k]):
-            print(f"PERINGATAN: angka berubah di '{k}', pakai versi Indonesia")
-            nilai = hasil[k]
-        terjemahan[k] = nilai
+        asli = hasil.get(k, "Tidak ada")
+        if isinstance(asli, list):
+            terjemahan[k] = data.get(k, asli)
+        else:
+            nilai = str(data.get(k, asli))
+            # Jika angka berubah, pakai teks asli (Indonesia) agar tidak salah informasi
+            if _angka(nilai) != _angka(asli):
+                print(f"PERINGATAN: angka berubah di '{k}', pakai versi Indonesia")
+                nilai = asli
+            terjemahan[k] = nilai
     return terjemahan
 
 
@@ -166,7 +177,13 @@ def analisis_dokumen(
             percobaan=percobaan,
         )
         data = _parse_json(response.text)
-        hasil = {k: str(data.get(k, "Tidak ada")) for k in KUNCI}
+        hasil = {}
+        for k in KUNCI:
+            val = data.get(k)
+            if isinstance(val, list):
+                hasil[k] = [str(x) for x in val]
+            else:
+                hasil[k] = str(val) if val is not None else "Tidak ada"
     except Exception as e:
         print("ERROR Gemini (analisis):", e)
         return dict(PESAN_SIBUK if _sementara(e) else PESAN_GAGAL)

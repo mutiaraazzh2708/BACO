@@ -10,12 +10,14 @@ class AskScreen extends StatefulWidget {
   final String bahasa;
   final String contextDocument;
   final String? documentTitle;
+  final List<String>? saranPertanyaan;
 
   const AskScreen({
     super.key,
     required this.bahasa,
     required this.contextDocument,
     this.documentTitle,
+    this.saranPertanyaan,
   });
 
   @override
@@ -732,64 +734,77 @@ class _AskScreenState extends State<AskScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Suggestion Chips
+                  // Suggestion Chips (Dinamis sesuai jenis dokumen)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: widget.documentTitle != null
-                          ? [
-                              ActionChip(
-                                avatar: const Icon(Icons.lightbulb,
-                                    size: 14, color: Color(0xFF1E56A0)),
-                                label: const Text("Bisa bayar di mana saja?"),
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                side: const BorderSide(color: Color(0xFFBFDBFE)),
-                                onPressed: () => _ask("Bisa bayar di mana saja?"),
-                              ),
-                              const SizedBox(width: 8),
-                              ActionChip(
-                                label: const Text("Bagaimana jika lewat tenggat?"),
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                side: const BorderSide(color: Color(0xFFBFDBFE)),
-                                onPressed: () =>
-                                    _ask("Bagaimana jika lewat tenggat waktu?"),
-                              ),
-                              const SizedBox(width: 8),
-                              ActionChip(
-                                label: const Text("Apa syarat yang harus disiapkan?"),
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                side: const BorderSide(color: Color(0xFFBFDBFE)),
-                                onPressed: () =>
-                                    _ask("Apa syarat yang harus disiapkan?"),
-                              ),
-                            ]
-                          : [
-                              ActionChip(
-                                avatar: const Icon(Icons.lightbulb,
-                                    size: 14, color: Color(0xFF1E56A0)),
-                                label: const Text("Cara daftar BPJS gratis?"),
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                side: const BorderSide(color: Color(0xFFBFDBFE)),
-                                onPressed: () =>
-                                    _ask("Bagaimana cara mendaftar BPJS Kesehatan gratis PBI?"),
-                              ),
-                              const SizedBox(width: 8),
-                              ActionChip(
-                                label: const Text("Syarat surat pengantar RT?"),
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                side: const BorderSide(color: Color(0xFFBFDBFE)),
-                                onPressed: () =>
-                                    _ask("Apa syarat membuat surat pengantar RT atau kelurahan?"),
-                              ),
-                              const SizedBox(width: 8),
-                              ActionChip(
-                                label: const Text("Kapan batas bayar listrik?"),
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                side: const BorderSide(color: Color(0xFFBFDBFE)),
-                                onPressed: () =>
-                                    _ask("Kapan batas akhir pembayaran tagihan listrik PLN setiap bulannya?"),
-                              ),
-                            ],
+                      children: (widget.saranPertanyaan != null && widget.saranPertanyaan!.isNotEmpty)
+                          ? widget.saranPertanyaan!.map((saran) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ActionChip(
+                                  avatar: const Icon(Icons.lightbulb, size: 14, color: Color(0xFF1E56A0)),
+                                  label: Text(saran),
+                                  backgroundColor: const Color(0xFFEFF6FF),
+                                  side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                  onPressed: () => _ask(saran),
+                                ),
+                              );
+                            }).toList()
+                          : (widget.documentTitle != null
+                              ? [
+                                  ActionChip(
+                                    avatar: const Icon(Icons.lightbulb,
+                                        size: 14, color: Color(0xFF1E56A0)),
+                                    label: const Text("Apa maksud dokumen ini?"),
+                                    backgroundColor: const Color(0xFFEFF6FF),
+                                    side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                    onPressed: () => _ask("Apa maksud dan isi utama dokumen ini?"),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ActionChip(
+                                    label: const Text("Siapa pihak terkait?"),
+                                    backgroundColor: const Color(0xFFEFF6FF),
+                                    side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                    onPressed: () =>
+                                        _ask("Siapa pihak atau instansi yang terkait dengan berkas ini?"),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ActionChip(
+                                    label: const Text("Apa yang harus dilakukan?"),
+                                    backgroundColor: const Color(0xFFEFF6FF),
+                                    side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                    onPressed: () =>
+                                        _ask("Apa tindakan atau langkah yang harus saya lakukan?"),
+                                  ),
+                                ]
+                              : [
+                                  ActionChip(
+                                    avatar: const Icon(Icons.lightbulb,
+                                        size: 14, color: Color(0xFF1E56A0)),
+                                    label: const Text("Cara daftar BPJS gratis?"),
+                                    backgroundColor: const Color(0xFFEFF6FF),
+                                    side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                    onPressed: () =>
+                                        _ask("Bagaimana cara mendaftar BPJS Kesehatan gratis PBI?"),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ActionChip(
+                                    label: const Text("Syarat surat pengantar RT?"),
+                                    backgroundColor: const Color(0xFFEFF6FF),
+                                    side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                    onPressed: () =>
+                                        _ask("Apa syarat membuat surat pengantar RT atau kelurahan?"),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ActionChip(
+                                    label: const Text("Kapan batas bayar listrik?"),
+                                    backgroundColor: const Color(0xFFEFF6FF),
+                                    side: const BorderSide(color: Color(0xFFBFDBFE)),
+                                    onPressed: () =>
+                                        _ask("Kapan batas akhir pembayaran tagihan listrik PLN setiap bulannya?"),
+                                  ),
+                                ]),
                     ),
                   ),
                   const SizedBox(height: 10),
