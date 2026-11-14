@@ -213,10 +213,13 @@ class _AskScreenState extends State<AskScreen> {
     }
   }
 
-  Future<void> _ask(String question) async {
+  Future<void> _ask(String question, {String? bahasaOverride}) async {
     if (question.trim().isEmpty) return;
     FocusScope.of(context).unfocus();
     _textController.clear();
+    _stopAudioPlayback();
+
+    final bahasaRequest = bahasaOverride ?? _currentBahasa;
 
     setState(() {
       _userQuestion = question;
@@ -228,7 +231,7 @@ class _AskScreenState extends State<AskScreen> {
       final answer = await _apiService.askQuestion(
         pertanyaan: question,
         konteks: widget.contextDocument,
-        bahasa: _currentBahasa,
+        bahasa: bahasaRequest,
       );
 
       setState(() {
@@ -280,7 +283,13 @@ class _AskScreenState extends State<AskScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 GestureDetector(
-                  onTap: () => setState(() => _currentBahasa = 'id'),
+                  onTap: () {
+                    if (_currentBahasa != 'id') {
+                      setState(() => _currentBahasa = 'id');
+                      // Re-ask dengan bahasa baru jika ada pertanyaan sebelumnya
+                      if (_userQuestion != null) _ask(_userQuestion!, bahasaOverride: 'id');
+                    }
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -300,7 +309,13 @@ class _AskScreenState extends State<AskScreen> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => setState(() => _currentBahasa = 'min'),
+                  onTap: () {
+                    if (_currentBahasa != 'min') {
+                      setState(() => _currentBahasa = 'min');
+                      // Re-ask dengan bahasa Minang jika ada pertanyaan sebelumnya
+                      if (_userQuestion != null) _ask(_userQuestion!, bahasaOverride: 'min');
+                    }
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
