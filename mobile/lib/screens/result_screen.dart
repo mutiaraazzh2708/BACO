@@ -58,8 +58,7 @@ class _ResultScreenState extends State<ResultScreen> {
   void _speakContent() {
     _playbackTimer?.cancel();
     final text = widget.result.toSpeechText(bahasa: _currentBahasa);
-    final words = text.split(RegExp(r'\s+')).length;
-    final estimated = ((words / (2.6 * _currentSpeed)).ceil()).clamp(5, 300);
+    final estimated = ((text.length / (11.5 * _currentSpeed)).ceil()).clamp(5, 360);
 
     setState(() {
       _isPlaying = true;
@@ -85,6 +84,10 @@ class _ResultScreenState extends State<ResultScreen> {
         return;
       }
       if (_elapsedSeconds < _totalSeconds) {
+        setState(() {
+          _elapsedSeconds++;
+        });
+      } else if (_elapsedSeconds < _totalSeconds + 10) {
         setState(() {
           _elapsedSeconds++;
         });

@@ -94,8 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
           "Arahkan kamera ke surat atau dokumen Anda, tekan tombol Foto Dokumen di bawah, "
           "dan BACO akan membacakan rangkumannya dengan suara jernih.";
 
-    final words = text.split(RegExp(r'\s+')).length;
-    final estimated = ((words / (2.6 * _currentSpeed)).ceil()).clamp(5, 60);
+    final estimated = ((text.length / (11.5 * _currentSpeed)).ceil()).clamp(5, 60);
 
     setState(() {
       _isPanduanPlaying = true;
@@ -121,6 +120,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
       if (_panduanElapsed < _panduanTotal) {
+        setState(() {
+          _panduanElapsed++;
+        });
+      } else if (_panduanElapsed < _panduanTotal + 8) {
         setState(() {
           _panduanElapsed++;
         });

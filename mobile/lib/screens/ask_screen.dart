@@ -55,8 +55,7 @@ class _AskScreenState extends State<AskScreen> {
 
   void _startAudioPlayback(String text) {
     _playbackTimer?.cancel();
-    final words = text.split(RegExp(r'\s+')).length;
-    final estimated = ((words / (2.6 * _currentSpeed)).ceil()).clamp(4, 180);
+    final estimated = ((text.length / (11.5 * _currentSpeed)).ceil()).clamp(4, 240);
 
     setState(() {
       _isAudioPlaying = true;
@@ -82,6 +81,11 @@ class _AskScreenState extends State<AskScreen> {
         return;
       }
       if (_audioElapsed < _audioTotal) {
+        setState(() {
+          _audioElapsed++;
+        });
+      } else if (_audioElapsed < _audioTotal + 10) {
+        // Biarkan berjalan menunggu mesin TTS menyelesaikan pembacaan tanpa mematikan paksa
         setState(() {
           _audioElapsed++;
         });
@@ -230,15 +234,18 @@ class _AskScreenState extends State<AskScreen> {
       setState(() {
         _aiAnswer = answer;
         _isLoading = false;
+        _audioTotal = ((answer.length / (11.5 * _currentSpeed)).ceil()).clamp(4, 240);
       });
 
       _startAudioPlayback(answer);
     } catch (e) {
+      final fallbackAnswer = "Jawaban: Pembayaran harus dilakukan sebelum batas tenggat agar kepesertaan tetap aktif.";
       setState(() {
-        _aiAnswer = "Jawaban: Pembayaran harus dilakukan sebelum batas tenggat agar kepesertaan tetap aktif.";
+        _aiAnswer = fallbackAnswer;
         _isLoading = false;
+        _audioTotal = ((fallbackAnswer.length / (11.5 * _currentSpeed)).ceil()).clamp(4, 240);
       });
-      _startAudioPlayback(_aiAnswer!);
+      _startAudioPlayback(fallbackAnswer);
     }
   }
 
