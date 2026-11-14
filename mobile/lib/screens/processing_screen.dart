@@ -238,8 +238,8 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                           const SizedBox(height: 4),
                           Text(
                             isMinang
-                                ? "“Mohon tunggu sabanta yo, ambo sadang membaco dokumen sanak...”"
-                                : "“Mohon tunggu sebentar ya, ambo sedang membaco dokumen sanak...”",
+                                ? "“Mohon tunggu sabanta yo, ambo sadang mambaco dokumen sanak...”"
+                                : "“Mohon tunggu sebentar ya, saya sedang membaca dokumen Anda...”",
                             style: TextStyle(
                               fontSize: 13,
                               fontStyle: FontStyle.italic,
