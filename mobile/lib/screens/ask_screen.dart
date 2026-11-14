@@ -244,7 +244,10 @@ class _AskScreenState extends State<AskScreen> {
 
       _startAudioPlayback(answer);
     } catch (e) {
-      final fallbackAnswer = "Jawaban: Pembayaran harus dilakukan sebelum batas tenggat agar kepesertaan tetap aktif.";
+      final isMin = _currentBahasa == 'min';
+      final fallbackAnswer = isMin
+          ? "Maaf, tajadi gangguan koneksi ka server BACO. Silakan pastikan koneksi atau tanyoan sakali lai."
+          : "Maaf, terjadi kendala saat menghubungi server BACO. Silakan coba tanyakan kembali beberapa saat lagi.";
       setState(() {
         _aiAnswer = fallbackAnswer;
         _isLoading = false;
