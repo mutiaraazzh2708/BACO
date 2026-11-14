@@ -39,7 +39,6 @@ class TtsService {
 
     _tts.setCancelHandler(() {
       _isPlaying = false;
-      onCompletion?.call();
     });
   }
 
@@ -55,8 +54,8 @@ class TtsService {
 
   Future<void> speak(String text) async {
     if (text.isEmpty) return;
-    await stop();
     _isPlaying = true;
+    await _tts.stop();
     onStart?.call();
     await _tts.speak(text);
   }
@@ -64,6 +63,5 @@ class TtsService {
   Future<void> stop() async {
     _isPlaying = false;
     await _tts.stop();
-    onCompletion?.call();
   }
 }
