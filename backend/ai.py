@@ -175,22 +175,21 @@ def jawab_pertanyaan(pertanyaan: str, konteks="", bahasa: str = "id") -> str:
     if isinstance(konteks, dict):
         konteks = json.dumps(konteks, ensure_ascii=False)
     info = cari_info(pertanyaan)
-    prompt = f"""Kamu adalah BACO, asisten yang membantu tunanetra dan lansia.
-Jawab pertanyaan pengguna berdasarkan isi dokumen dan info layanan publik berikut.
+    prompt = f"""Kamu adalah BACO, asisten pintar yang ramah dan membantu tunanetra serta lansia memahami dokumen dan layanan publik resmi Indonesia.
 
-Isi dokumen: {konteks}
+Konteks dokumen: {konteks if konteks else "(Belum ada dokumen yang dipindai, ini pertanyaan umum)"}
 
-Info layanan publik (pakai hanya jika relevan dengan pertanyaan):
+Info layanan publik referensi:
 {info if info else "(tidak ada)"}
 
-Pertanyaan: {pertanyaan}
+Pertanyaan pengguna: {pertanyaan}
 
-Aturan:
-- Langsung jawab, tanpa menyapa atau memperkenalkan diri.
-- Jawab dalam {BAHASA.get(bahasa, BAHASA["id"])}, singkat, 1-3 kalimat, mudah dipahami lansia.
-- Hanya gunakan informasi dari isi dokumen dan info layanan publik di atas. Jika jawabannya tidak ada, katakan tidak tahu dan sarankan bertanya ke petugas atau instansi terkait.
-- Jika memakai info layanan publik, sebutkan nama instansinya (misalnya "menurut BPJS Kesehatan").
-- Jangan mengarang angka atau tanggal. Angka dan tanggal ditulis apa adanya.
+Panduan menjawab:
+- Langsung jawab inti informasinya, tanpa salam pembuka atau basa-basi.
+- Jawab dalam {BAHASA.get(bahasa, BAHASA["id"])}, singkat (2-3 kalimat), bahasa sederhana yang mudah dipahami lansia.
+- Jika ada konteks dokumen fisik dan pertanyaan relevan dengan isi dokumen tersebut, utamakan fakta dokumen.
+- Jika pengguna bertanya tentang layanan umum resmi Indonesia (seperti cara daftar BPJS PBI/gratis, syarat pengantar RT, batas bayar tagihan listrik/PDAM, bansos DTKS, dll), jawablah dengan panduan resmi dan jelas menggunakan info referensi di atas serta pengetahuan layanan publik Indonesia.
+- Jangan mengarang data fiktif atau nomor pribadi. Jika memerlukan kedatangan langsung, sebutkan nama kantor instansi yang tepat (misal kantor kelurahan atau BPJS).
 {GAYA_MINANG if bahasa == "min" else ""}"""
     try:
         response = _generate(prompt)
